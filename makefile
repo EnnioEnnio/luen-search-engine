@@ -1,4 +1,4 @@
-.PHONY: build test format tidy run clean help
+.PHONY: build test lint format tidy run clean help
 
 GO ?= go
 BIN_DIR := bin
@@ -10,6 +10,9 @@ build: ## Build the project binary.
 
 test: ## Run all Go tests.
 	$(GO) test ./...
+
+lint: ## Run static analysis checks.
+	$(GO) vet ./...
 
 format: ## Format all Go source files.
 	$(GO) fmt ./...
