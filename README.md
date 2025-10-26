@@ -7,14 +7,14 @@ build an inverted index, and offer a small CLI search experience with AND semant
 ## Prerequisites
 
 - Go 1.22+
-- The `msmarco-docs.tsv` dataset (same file used by the Python version). Place it
-  anywhere convenient – by default the program looks for
-  `data/msmarco-docs.tsv`.
+- The `msmarco-docs.tsv` [dataset](https://microsoft.github.io/msmarco/Datasets.html#datasets) (same file used by the Python version). Place it anywhere convenient – by default the program looks for `data/msmarco-docs.tsv`.
 
 ## Getting Started
 
+A `makefile` is provided for common tasks:
+
 ```bash
-go run .
+make help          # Show currently available commands
 ```
 
 Optional flags:
