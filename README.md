@@ -1,4 +1,4 @@
-# hpi-search-engine
+# luen-search-engine
 
 Go rewrite of the seminar's Python search engine project. 
 The implementation keeps the original behaviour: load a slice of the MS MARCO document collection, 
