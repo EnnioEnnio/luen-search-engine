@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sort"
 
-	"hpi-search-engine/internal/index"
-	"hpi-search-engine/internal/text"
+	"luen-search-engine/internal/index"
+	"luen-search-engine/internal/text"
 )
 
 // Match keeps track of how often a token occurred in a document.

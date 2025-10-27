@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"hpi-search-engine/internal/data"
-	"hpi-search-engine/internal/index"
-	"hpi-search-engine/internal/text"
+	"luen-search-engine/internal/data"
+	"luen-search-engine/internal/index"
+	"luen-search-engine/internal/text"
 )
 
 func buildIndexForTests(t *testing.T, docs []data.Document) index.InvertedIndex {

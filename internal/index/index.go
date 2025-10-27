@@ -1,8 +1,8 @@
 package index
 
 import (
-	"hpi-search-engine/internal/data"
-	"hpi-search-engine/internal/text"
+	"luen-search-engine/internal/data"
+	"luen-search-engine/internal/text"
 )
 
 // PostingList stores document frequencies and postings for a single token.
