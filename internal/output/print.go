@@ -3,8 +3,8 @@ package output
 import (
 	"fmt"
 
-	"hpi-search-engine/internal/data"
-	"hpi-search-engine/internal/search"
+	"luen-search-engine/internal/data"
+	"luen-search-engine/internal/search"
 )
 
 // PrintResults pretty-prints a list of results together with document metadata.

@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"hpi-search-engine/internal/data"
-	"hpi-search-engine/internal/index"
-	"hpi-search-engine/internal/output"
-	"hpi-search-engine/internal/search"
-	"hpi-search-engine/internal/text"
+	"luen-search-engine/internal/data"
+	"luen-search-engine/internal/index"
+	"luen-search-engine/internal/output"
+	"luen-search-engine/internal/search"
+	"luen-search-engine/internal/text"
 )
 
 func captureStdout(t *testing.T, fn func()) string {

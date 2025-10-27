@@ -3,8 +3,8 @@ package index
 import (
 	"testing"
 
-	"hpi-search-engine/internal/data"
-	"hpi-search-engine/internal/text"
+	"luen-search-engine/internal/data"
+	"luen-search-engine/internal/text"
 )
 
 func TestBuildCreatesPostingLists(t *testing.T) {

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"hpi-search-engine/internal/data"
-	"hpi-search-engine/internal/search"
+	"luen-search-engine/internal/data"
+	"luen-search-engine/internal/search"
 )
 
 func captureOutput(t *testing.T, fn func()) string {
