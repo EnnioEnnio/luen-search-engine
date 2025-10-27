@@ -1,3 +1,5 @@
+![ChatGPT Image Oct 27, 2025 at 10_54_42 AM](https://github.com/user-attachments/assets/13e8d57f-7529-4178-8d87-b95b1179d882)
+
 # luen-search-engine
 
 Go rewrite of the seminar's Python search engine project. 
