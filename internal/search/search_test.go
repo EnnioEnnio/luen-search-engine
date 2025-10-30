@@ -101,4 +101,7 @@ func TestSearchLimitsToTopTenResults(t *testing.T) {
 	if len(results) != 10 {
 		t.Fatalf("expected 10 results, got %d", len(results))
 	}
+	if total <= 10 {
+		t.Fatalf("expected total results to exceed 10, got %d", total)
+	}
 }
