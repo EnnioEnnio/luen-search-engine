@@ -62,7 +62,7 @@ func main() {
 			fmt.Printf("Error while searching: %v\n", err)
 			continue
 		}
-		
+
 		output.PrintResults(results, dataset, total)
 	}
 }
