@@ -57,13 +57,12 @@ func main() {
 			return
 		}
 
-		results, err := search.Search(inverted, tokenizer, searchTerm)
+		results, total, err := search.Search(inverted, tokenizer, searchTerm)
 		if err != nil {
 			fmt.Printf("Error while searching: %v\n", err)
 			continue
 		}
-
-		total := len(results)
+		
 		output.PrintResults(results, dataset, total)
 	}
 }

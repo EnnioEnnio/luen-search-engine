@@ -22,21 +22,21 @@ type Result struct {
 }
 
 // Search finds documents that contain all query tokens and orders them by frequency.
-func Search(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]Result, error) {
+func Search(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]Result, int, error) {
 	if query == "" {
-		return nil, fmt.Errorf("query must not be empty")
+		return nil, 0, fmt.Errorf("query must not be empty")
 	}
 
 	tokens := tokenizer.Tokenize(query)
 	if len(tokens) == 0 {
-		return nil, nil
+		return nil, 0, nil
 	}
 
 	docLists := make([]map[string]Match, 0, len(tokens))
 	for _, token := range tokens {
 		posting, ok := idx[token]
 		if !ok {
-			return nil, nil
+			return nil, 0, nil
 		}
 
 		docs := make(map[string]Match, len(posting.Docs))
@@ -47,7 +47,7 @@ func Search(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]
 	}
 
 	if len(docLists) == 0 {
-		return nil, nil
+		return nil, 0, nil
 	}
 
 	results := make([]Result, 0)
@@ -85,9 +85,11 @@ func Search(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]
 		return results[i].TotalTermFrequency > results[j].TotalTermFrequency
 	})
 
+	resultCount := len(results)
+
 	if len(results) > 10 {
 		results = results[:10]
 	}
 
-	return results, nil
+	return results, resultCount, nil
 }
