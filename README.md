@@ -16,7 +16,7 @@ build an inverted index, and offer a small CLI search experience with AND semant
 A `makefile` is provided for common tasks:
 
 ```bash
-make help          # Show currently available commands
+make help          # Show currently available command(s)
 ```
 
 Optional flags:
