@@ -71,19 +71,22 @@ func TestEndToEndSearchFlow(t *testing.T) {
 		t.Fatal("expected tokens in inverted index")
 	}
 
-	results, err := search.Search(inverted, tokenizer, "quick lazy")
+	results, total, err := search.Search(inverted, tokenizer, "quick lazy")
 	if err != nil {
 		t.Fatalf("search error: %v", err)
 	}
 	if len(results) != 1 {
 		t.Fatalf("expected a single matching document, got %d", len(results))
 	}
+	if total != 1 {
+		t.Fatalf("expected total result count to be 1, got %d", total)
+	}
 	if results[0].DocID != "doc1" {
 		t.Fatalf("expected doc1 to match, got %s", results[0].DocID)
 	}
 
 	outputText := captureStdout(t, func() {
-		output.PrintResults(results, dataset, len(results))
+		output.PrintResults(results, dataset, total)
 	})
 
 	expectedFragments := []string{

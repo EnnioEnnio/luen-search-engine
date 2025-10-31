@@ -19,7 +19,7 @@ func TestSearchReturnsErrorOnEmptyQuery(t *testing.T) {
 	idx := make(index.InvertedIndex)
 	tokenizer := text.NewTokenizer()
 
-	_, err := Search(idx, tokenizer, "")
+	_, _, err := Search(idx, tokenizer, "")
 	if err == nil {
 		t.Fatal("expected error for empty query, got nil")
 	}
@@ -38,11 +38,14 @@ func TestSearchReturnsResultsSortedByScore(t *testing.T) {
 	idx := buildIndexForTests(t, docs)
 	tokenizer := text.NewTokenizer()
 
-	results, err := Search(idx, tokenizer, "search engine")
+	results, total, err := Search(idx, tokenizer, "search engine")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
+	if total != 3 {
+		t.Fatalf("expected total results to be 3, got %d", total)
+	}
 	if len(results) != 3 {
 		t.Fatalf("expected 3 results, got %d", len(results))
 	}
@@ -66,12 +69,15 @@ func TestSearchMissingTokenReturnsNil(t *testing.T) {
 	idx := buildIndexForTests(t, docs)
 	tokenizer := text.NewTokenizer()
 
-	results, err := Search(idx, tokenizer, "missing token")
+	results, total, err := Search(idx, tokenizer, "missing token")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if results != nil {
 		t.Fatalf("expected nil results when token is missing, got %v", results)
+	}
+	if total != 0 {
+		t.Fatalf("expected total results to be 0, got %d", total)
 	}
 }
 
@@ -88,11 +94,14 @@ func TestSearchLimitsToTopTenResults(t *testing.T) {
 	idx := buildIndexForTests(t, docs)
 	tokenizer := text.NewTokenizer()
 
-	results, err := Search(idx, tokenizer, "term")
+	results, total, err := Search(idx, tokenizer, "term")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(results) != 10 {
 		t.Fatalf("expected 10 results, got %d", len(results))
+	}
+	if total <= 10 {
+		t.Fatalf("expected total results to exceed 10, got %d", total)
 	}
 }
