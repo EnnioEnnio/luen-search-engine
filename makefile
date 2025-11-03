@@ -2,7 +2,7 @@
 
 GO ?= go
 BIN_DIR := bin
-BINARY := luen-search-engine
+BINARY := luen
 
 build: ## Build the project binary.
 	@mkdir -p $(BIN_DIR)
