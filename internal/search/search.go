@@ -2,6 +2,7 @@ package search
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -18,47 +19,69 @@ type Match struct {
 // Result represents the aggregated scores for a matching document.
 type Result struct {
 	DocID              string
-	TotalTermFrequency int 		// used for ranking only
+	TotalTermFrequency int // used for ranking only
 	Matches            []Match
 }
 
 // PreprocessQuery returns a List of maps(key: docID, value: Match), for each token one list
-func PreprocessQuery(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]map[string]Match){
-	tokens := tokenizer.Tokenize(query)
+func PreprocessQuery(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]map[string]Match, []bool) {
+	tokens, isNegated := tokenizer.Tokenize(query)
 	docLists := make([]map[string]Match, 0, len(tokens))
 
 	if len(tokens) == 0 {
-		return docLists
+		return docLists, isNegated
 	}
 
+	// Sort Tokens to ensure non-negated token (false values) before negated token (true values)
+	sort.SliceStable(tokens, func(i, j int) bool {
+		// less interface is i < j -> true -> i before j
+		// we want not negated (false) before negated (true), thus i = false && j = true -> true
+		return !isNegated[i] && isNegated[j]
+	})
+
+	sort.SliceStable(isNegated, func(i, j int) bool {
+		// see sorting above
+		return !isNegated[i] && isNegated[j]
+	})
+
 	for _, token := range tokens {
-		posting, ok := idx[token]
-		if !ok {
+		posting, found := idx[token]
+		if !found {
 			continue
 		}
 
-		docs := make(map[string]Match, len(posting.Docs))
+		matches := make(map[string]Match, len(posting.Docs))
 		for docID, freq := range posting.Docs {
-			docs[docID] = Match{Token: token, Frequency: freq}
+			matches[docID] = Match{Token: token, Frequency: freq}
 		}
-		docLists = append(docLists, docs)
+		docLists = append(docLists, matches)
 	}
 
-	return docLists
-
+	return docLists, isNegated
 }
 
-func processANDQuery(docLists []map[string]Match) ([]Result) {
+func processANDQuery(docLists []map[string]Match, isNegated []bool) []Result {
 	results := make([]Result, 0)
 
-	for docID, headMatch := range docLists[0] {
+	for docID, headMatch := range docLists[0] { // iterate over first token's results
 		total := headMatch.Frequency
 		matches := []Match{headMatch}
 		missing := false
+		excludeDoc := false
 
-		for _, docs := range docLists[1:] {
-			match, ok := docs[docID]
-			if !ok {
+		for i, docs := range docLists[1:] { // iterate over other tokens results
+			actualIndex := i + 1
+
+			if isNegated[actualIndex] {
+				if _, found := docs[docID]; found {
+					excludeDoc = true
+					break
+				}
+				continue
+			}
+
+			match, found := docs[docID]
+			if !found {
 				missing = true
 				break
 			}
@@ -66,7 +89,7 @@ func processANDQuery(docLists []map[string]Match) ([]Result) {
 			matches = append(matches, match)
 		}
 
-		if missing {
+		if missing || excludeDoc {
 			continue
 		}
 
@@ -77,10 +100,9 @@ func processANDQuery(docLists []map[string]Match) ([]Result) {
 		})
 	}
 	return results
-
 }
 
-func processORQuery(docLists []map[string]Match) ([]Result) {
+func processORQuery(docLists []map[string]Match) []Result {
 	result_map := make(map[string]Result, 0)
 
 	for _, docList := range docLists {
@@ -110,17 +132,25 @@ func Search(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]
 		return nil, 0, fmt.Errorf("query must not be empty")
 	}
 
-	docLists := PreprocessQuery(idx, tokenizer, query)
+	docLists, isNegated := PreprocessQuery(idx, tokenizer, query)
 	if len(docLists) == 0 {
 		return nil, 0, nil
 	}
+
+	if !slices.Contains(isNegated, false) {
+		return nil, 0, fmt.Errorf("failed to process query. Only negations detected... Please enter at least one positive search term")
+	}
+
 	results := make([]Result, 0)
 
-	if strings.Contains((query), "or") {
+	if strings.Contains(query, "or") {
+		if slices.Contains(isNegated, true) {
+			return nil, 0, fmt.Errorf("combining NOT and OR queries is not allowed")
+		}
 		// TODO: properly split at every or and support a combination of OR and AND queries
 		results = processORQuery(docLists)
 	} else {
-		results = processANDQuery(docLists)
+		results = processANDQuery(docLists, isNegated)
 	}
 
 	// sort results by frequency

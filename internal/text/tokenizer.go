@@ -27,9 +27,9 @@ func NewTokenizer() Tokenizer {
 }
 
 // Tokenize returns normalized tokens extracted from the provided string.
-func (t Tokenizer) Tokenize(value string) []string {
+func (t Tokenizer) Tokenize(value string) ([]string, []bool) {
 	if value == "" {
-		return nil
+		return nil, nil
 	}
 
 	// Slice for keeping track of negated values (bool true)
@@ -44,16 +44,21 @@ func (t Tokenizer) Tokenize(value string) []string {
 			return
 		}
 		token := builder.String()
-		// isNegated checken strings.prefix ... -> slice befüllen 
 		builder.Reset()
+		isNegated := strings.HasPrefix(token, "-")
+
+		if isNegated {
+			token = token[1:]
+		}
 		if _, isStop := t.stopwords[token]; isStop {
 			return
 		}
 		tokens = append(tokens, token)
+		isTokenNegated = append(isTokenNegated, isNegated)
 	}
 
 	for _, r := range lower {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) || // or is minus {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' {
 			builder.WriteRune(r)
 			continue
 		}
@@ -61,5 +66,5 @@ func (t Tokenizer) Tokenize(value string) []string {
 	}
 
 	flush()
-	return tokens
+	return tokens, isTokenNegated
 }

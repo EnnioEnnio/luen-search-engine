@@ -19,8 +19,9 @@ func Build(docs []data.Document, tokenizer text.Tokenizer) InvertedIndex {
 	idx := make(InvertedIndex)
 
 	for _, doc := range docs {
-		tokens := tokenizer.Tokenize(doc.Title)
-		tokens = append(tokens, tokenizer.Tokenize(doc.Text)...)
+		tokens, _ := tokenizer.Tokenize(doc.Title)
+		tokensBody, _ := tokenizer.Tokenize(doc.Text)
+		tokens = append(tokens, tokensBody...)
 
 		for _, token := range tokens {
 			posting, ok := idx[token]
