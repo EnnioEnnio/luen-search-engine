@@ -32,6 +32,9 @@ func (t Tokenizer) Tokenize(value string) []string {
 		return nil
 	}
 
+	// Slice for keeping track of negated values (bool true)
+	isTokenNegated := make([]bool, 0)
+
 	lower := strings.ToLower(value)
 	tokens := make([]string, 0)
 	var builder strings.Builder
@@ -41,6 +44,7 @@ func (t Tokenizer) Tokenize(value string) []string {
 			return
 		}
 		token := builder.String()
+		// isNegated checken strings.prefix ... -> slice befüllen 
 		builder.Reset()
 		if _, isStop := t.stopwords[token]; isStop {
 			return
@@ -49,7 +53,7 @@ func (t Tokenizer) Tokenize(value string) []string {
 	}
 
 	for _, r := range lower {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || // or is minus {
 			builder.WriteRune(r)
 			continue
 		}
