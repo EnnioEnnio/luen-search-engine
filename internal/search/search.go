@@ -81,7 +81,7 @@ func processANDQuery(docLists []map[string]Match) ([]Result) {
 }
 
 func processORQuery(docLists []map[string]Match) ([]Result) {
-	result_map := make(map[string]Result, 1024)
+	result_map := make(map[string]Result, 0)
 
 	for _, docList := range docLists {
 		for docID, match := range docList {
