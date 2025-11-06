@@ -46,7 +46,7 @@ func TestLoadInBatchesReadsDocumentsAndLimit(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected doc2 to be present in lookup")
 	}
-	// Note: MetadataDoc doesn't have Text field, only ID, URL, Title
+	// Note: Dataset now stores MetadataDoc (ID, URL, Title only) instead of full Document with Text
 	if doc2.Title != "Second Title" {
 		t.Fatalf("expected title %q, got %q", "Second Title", doc2.Title)
 	}
