@@ -138,7 +138,7 @@ func Search(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]
 	}
 
 	if !slices.Contains(isNegated, false) {
-		return nil, 0, fmt.Errorf("failed to process query. Only negations detected... Please enter at least one positive search term")
+		return nil, 0, fmt.Errorf("query contains only negations: at least one positive search term is required")
 	}
 
 	results := make([]Result, 0)
