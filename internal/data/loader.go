@@ -24,8 +24,7 @@ type MetadataDoc struct {
 
 // Dataset keeps the loaded documents together with a direct lookup table.
 type Dataset struct {
-	Documents []MetadataDoc
-	ByID      map[string]MetadataDoc
+	ByID map[string]MetadataDoc
 }
 
 // LoadInBatches processes a file in batches, calling processBatch for each batch.
@@ -51,7 +50,6 @@ func LoadInBatches(path string, batchSize int, totalLimit int, processBatch func
 	reader.FieldsPerRecord = -1
 	reader.LazyQuotes = true
 
-	allDocs := make([]MetadataDoc, 0)
 	lookup := make(map[string]MetadataDoc)
 	currentBatch := make([]Document, 0, batchSize)
 	totalLoaded := 0
@@ -106,7 +104,6 @@ func LoadInBatches(path string, batchSize int, totalLimit int, processBatch func
 		}
 
 		currentBatch = append(currentBatch, doc)
-		allDocs = append(allDocs, metadataDoc)
 		lookup[metadataDoc.ID] = metadataDoc
 		totalLoaded++
 
@@ -120,8 +117,7 @@ func LoadInBatches(path string, batchSize int, totalLimit int, processBatch func
 	}
 
 	return &Dataset{
-		Documents: allDocs,
-		ByID:      lookup,
+		ByID: lookup,
 	}, nil
 }
 
@@ -130,5 +126,5 @@ func (d *Dataset) Size() int {
 	if d == nil {
 		return 0
 	}
-	return len(d.Documents)
+	return len(d.ByID)
 }
