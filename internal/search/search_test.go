@@ -146,7 +146,7 @@ func TestSearchWithOnlyNegatedTokensReturnsError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for query with only negations, got nil")
 	}
-	if !strings.Contains(err.Error(), "Only negations detected") {
+	if !strings.Contains(err.Error(), "query contains only negations") {
 		t.Fatalf("unexpected error message: %v", err)
 	}
 }
