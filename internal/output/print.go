@@ -2,6 +2,7 @@ package output
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"luen-search-engine/internal/data"
@@ -37,6 +38,13 @@ func PrintResults(results []search.Result, dataset *data.Dataset, total int) {
 		fmt.Println("    📝 Matches:")
 		for _, match := range result.Matches {
 			fmt.Printf("       %s count: %d\n", match.Token, match.Frequency)
+			positions := "Positions: "
+			for _, p := range match.Positions {
+				positions += strconv.Itoa(p)
+				positions += " - "
+			}
+			fmt.Print(positions[:len(positions)-3]) // Trim trailing " - "
+			fmt.Print("\n")
 		}
 
 		if i < len(results)-1 {

@@ -14,6 +14,7 @@ import (
 type Match struct {
 	Token     string
 	Frequency int
+	Positions []int
 }
 
 // Result represents the aggregated scores for a matching document.
@@ -51,8 +52,8 @@ func PreprocessQuery(idx index.InvertedIndex, tokenizer text.Tokenizer, query st
 		}
 
 		matches := make(map[string]Match, len(posting.Docs))
-		for docID, freq := range posting.Docs {
-			matches[docID] = Match{Token: token, Frequency: freq}
+		for docID, positions := range posting.Docs {
+			matches[docID] = Match{Token: token, Frequency: len(positions), Positions: positions}
 		}
 		docLists = append(docLists, matches)
 	}
@@ -126,10 +127,68 @@ func processORQuery(docLists []map[string]Match) []Result {
 	return results
 }
 
+func processPhraseQuery(docLists []map[string]Match) []Result {
+	results := make([]Result, 0)
+
+	for docID, headMatch := range docLists[0] {
+		missing := false
+		matches := make([]Match, 0)
+		for i, docs := range docLists[1:] { // iterate over other tokens results
+			actualIndex := i + 1
+			match, found := docs[docID]
+			if !found {
+				missing = true
+				break
+			}
+
+			// if the next token does not appear at the expected position, remove the position from the head positions
+			headMatch.Positions = slices.DeleteFunc(headMatch.Positions, func(p int) bool {
+				if !slices.Contains(match.Positions, p+actualIndex) {
+					return true
+				}
+				return false
+			})
+
+			match.Positions = slices.DeleteFunc(match.Positions, func(p int) bool {
+				if !slices.Contains(headMatch.Positions, p-actualIndex) {
+					return true
+				}
+				return false
+			})
+
+			if len(headMatch.Positions) == 0 {
+				missing = true
+				break
+			}
+
+			match.Frequency = len(match.Positions)
+
+			matches = append(matches, match)
+		}
+
+		if missing {
+			continue
+		}
+		total := len(headMatch.Positions)
+
+		results = append(results, Result{
+			DocID:              docID,
+			TotalTermFrequency: total,
+			Matches:            matches,
+		})
+	}
+	return results
+
+}
+
 // Search finds documents that contain all query tokens and orders them by frequency.
-func Search(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]Result, int, error) {
+func Search(idx index.InvertedIndex, tokenizer text.Tokenizer, query string, mode string) ([]Result, int, error) {
 	if query == "" {
 		return nil, 0, fmt.Errorf("query must not be empty")
+	}
+
+	if mode == "phrase" {
+		return SearchPhrase(idx, tokenizer, query)
 	}
 
 	// Check for OR operator before tokenization (tokenizer removes stopwords)
@@ -164,6 +223,49 @@ func Search(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]
 	} else {
 		results = processANDQuery(docLists, isNegated)
 	}
+
+	// sort results by frequency
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].TotalTermFrequency == results[j].TotalTermFrequency {
+			return results[i].DocID < results[j].DocID
+		}
+		return results[i].TotalTermFrequency > results[j].TotalTermFrequency
+	})
+
+	resultCount := len(results)
+
+	// return top 10 results
+	if len(results) > 10 {
+		results = results[:10]
+	}
+
+	return results, resultCount, nil
+}
+
+// TO BE REMOVED!!!!!
+// This is just a temporary workaround until the query parser is implemented to proper handle phrase queries within the full query string.
+func SearchPhrase(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]Result, int, error) {
+	lowerQuery := strings.ToLower(query)
+	// Split by whitespace and check if any token is exactly "or"
+	queryTokens := strings.Fields(lowerQuery)
+	for _, token := range queryTokens {
+		if token == "or" || token == "-or" {
+			return nil, 0, fmt.Errorf("OR operator is not supported in phrase queries")
+		}
+	}
+
+	docLists, isNegated := PreprocessQuery(idx, tokenizer, query)
+	if len(docLists) == 0 {
+		return nil, 0, nil
+	}
+
+	if slices.Contains(isNegated, true) {
+		return nil, 0, fmt.Errorf("phrase queries do not support negation")
+	}
+
+	results := make([]Result, 0)
+
+	results = processPhraseQuery(docLists)
 
 	// sort results by frequency
 	sort.Slice(results, func(i, j int) bool {
