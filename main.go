@@ -20,17 +20,35 @@ import (
 func main() {
 	dataPath := flag.String("data", "data/msmarco-docs.tsv", "Path to the MS MARCO TSV file")
 	limit := flag.Int("limit", 1000, "Maximum number of documents to load (0 means all)")
+	batchSize := flag.Int("batchSize", 1000, "Number of documents to process per batch")
 	flag.Parse()
+
+	if *limit < 0 {
+		log.Fatalf("limit must be non-negative (0 means all), got %d", *limit)
+	}
+
+	if *batchSize <= 0 {
+		log.Fatalf("batch size must be positive, got %d", *batchSize)
+	}
 
 	tokenizer := text.NewTokenizer()
 
-	dataset, err := data.Load(*dataPath, *limit)
+	// Create the inverted index that will be built incrementally
+	inverted := make(index.InvertedIndex)
+	batchCount := 0
+
+	// Process data in batches
+	fmt.Printf("Loading and indexing data in batches of %d documents...\n", *batchSize)
+	dataset, err := data.LoadInBatches(*dataPath, *batchSize, *limit, func(batch []data.Document) error {
+		batchCount++
+		fmt.Printf("Processing batch %d (%d documents)...\n", batchCount, len(batch))
+		index.AddDocuments(inverted, batch, tokenizer)
+		return nil
+	})
 	if err != nil {
 		log.Fatalf("failed to load data: %v", err)
 	}
-	fmt.Printf("Data loaded with %d documents.\n", dataset.Size())
-
-	inverted := index.Build(dataset.Documents, tokenizer)
+	fmt.Printf("Data loaded with %d documents in %d batches.\n", dataset.Size(), batchCount)
 	fmt.Printf("Inverted Index created with %d unique tokens.\n", inverted.TokenCount())
 
 	reader := bufio.NewReader(os.Stdin)

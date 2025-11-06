@@ -16,17 +16,28 @@ type Document struct {
 	Text  string
 }
 
-// Dataset keeps the loaded documents together with a direct lookup table.
-type Dataset struct {
-	Documents []Document
-	ByID      map[string]Document
+type MetadataDoc struct {
+	ID    string
+	URL   string
+	Title string
 }
 
-// Load reads up to `limit` rows from a tab-separated file and returns a Dataset.
-// The file is expected to be ordered as: docId, url, title, text – without a header.
-func Load(path string, limit int) (*Dataset, error) {
-	if limit < 0 {
-		return nil, errors.New("limit must be zero or positive")
+// Dataset keeps the loaded documents together with a direct lookup table.
+type Dataset struct {
+	Documents []MetadataDoc
+	ByID      map[string]MetadataDoc
+}
+
+// LoadInBatches processes a file in batches, calling processBatch for each batch.
+// This allows incremental processing of large datasets that don't fit in memory.
+// Unlike our previous approach we now possibly have the full index
+// but only a shallow dataset, without the actual text of a document.
+func LoadInBatches(path string, batchSize int, totalLimit int, processBatch func(batch []Document) error) (*Dataset, error) {
+	if batchSize <= 0 {
+		return nil, errors.New("batchSize must be positive")
+	}
+	if totalLimit < 0 {
+		return nil, errors.New("totalLimit must be zero or positive")
 	}
 
 	file, err := os.Open(path)
@@ -40,16 +51,30 @@ func Load(path string, limit int) (*Dataset, error) {
 	reader.FieldsPerRecord = -1
 	reader.LazyQuotes = true
 
-	docs := make([]Document, 0, limit)
-	lookup := make(map[string]Document)
+	allDocs := make([]MetadataDoc, 0)
+	lookup := make(map[string]MetadataDoc)
+	currentBatch := make([]Document, 0, batchSize)
+	totalLoaded := 0
 
 	for {
-		if limit != 0 && len(docs) >= limit {
+		if totalLimit != 0 && totalLoaded >= totalLimit {
+			// Process final batch if it has any documents
+			if len(currentBatch) > 0 {
+				if err := processBatch(currentBatch); err != nil {
+					return nil, err
+				}
+			}
 			break
 		}
 
 		record, err := reader.Read()
 		if errors.Is(err, io.EOF) {
+			// Process final batch if it has any documents
+			if len(currentBatch) > 0 {
+				if err := processBatch(currentBatch); err != nil {
+					return nil, err
+				}
+			}
 			break
 		}
 		if err != nil {
@@ -74,12 +99,28 @@ func Load(path string, limit int) (*Dataset, error) {
 			Text:  textField,
 		}
 
-		docs = append(docs, doc)
-		lookup[doc.ID] = doc
+		metadataDoc := MetadataDoc{
+			ID:    record[0],
+			URL:   record[1],
+			Title: record[2],
+		}
+
+		currentBatch = append(currentBatch, doc)
+		allDocs = append(allDocs, metadataDoc)
+		lookup[metadataDoc.ID] = metadataDoc
+		totalLoaded++
+
+		// Process batch when it reaches the batch size
+		if len(currentBatch) >= batchSize {
+			if err := processBatch(currentBatch); err != nil {
+				return nil, err
+			}
+			currentBatch = make([]Document, 0, batchSize)
+		}
 	}
 
 	return &Dataset{
-		Documents: docs,
+		Documents: allDocs,
 		ByID:      lookup,
 	}, nil
 }

@@ -17,7 +17,13 @@ type InvertedIndex map[string]*PostingList
 // Build constructs an inverted index for the provided documents.
 func Build(docs []data.Document, tokenizer text.Tokenizer) InvertedIndex {
 	idx := make(InvertedIndex)
+	AddDocuments(idx, docs, tokenizer)
+	return idx
+}
 
+// AddDocuments adds documents to an existing inverted index.
+// This allows incremental index building for batch processing.
+func AddDocuments(idx InvertedIndex, docs []data.Document, tokenizer text.Tokenizer) {
 	for _, doc := range docs {
 		tokens, _ := tokenizer.Tokenize(doc.Title)
 		tokensBody, _ := tokenizer.Tokenize(doc.Text)
@@ -39,8 +45,6 @@ func Build(docs []data.Document, tokenizer text.Tokenizer) InvertedIndex {
 			}
 		}
 	}
-
-	return idx
 }
 
 // TokenCount returns the number of unique tokens held in the index.
