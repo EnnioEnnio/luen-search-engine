@@ -15,7 +15,7 @@ and provides a CLI search interface with AND semantics across query terms.
 
 ## Prerequisites
 
-- Go 1.22+
+- Go 1.25+
 - The `msmarco-docs.tsv` [dataset](https://microsoft.github.io/msmarco/Datasets.html#datasets). Place it anywhere convenient – by default the program looks for `data/msmarco-docs.tsv`.
 
 ## Getting Started
