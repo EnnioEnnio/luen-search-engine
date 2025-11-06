@@ -132,6 +132,18 @@ func Search(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]
 		return nil, 0, fmt.Errorf("query must not be empty")
 	}
 
+	// Check for OR operator before tokenization (tokenizer removes stopwords)
+	isORQuery := false
+	lowerQuery := strings.ToLower(query)
+	// Split by whitespace and check if any token is exactly "or"
+	queryTokens := strings.Fields(lowerQuery)
+	for _, token := range queryTokens {
+		if token == "or" || token == "-or" {
+			isORQuery = true
+			break
+		}
+	}
+
 	docLists, isNegated := PreprocessQuery(idx, tokenizer, query)
 	if len(docLists) == 0 {
 		return nil, 0, nil
@@ -143,7 +155,7 @@ func Search(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]
 
 	results := make([]Result, 0)
 
-	if strings.Contains(query, "or") {
+	if isORQuery {
 		if slices.Contains(isNegated, true) {
 			return nil, 0, fmt.Errorf("combining NOT and OR queries is not allowed")
 		}
