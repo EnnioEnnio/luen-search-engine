@@ -9,7 +9,7 @@ build: ## Build the project binary.
 	$(GO) build -o $(BIN_DIR)/$(BINARY) .
 
 test: ## Run all Go tests.
-	$(GO) test ./...
+	$(GO) test ./... -v
 
 lint: ## Run static analysis checks.
 	$(GO) vet ./...
@@ -24,7 +24,7 @@ dev: build ## Build and run the binary with a smaller corpus (1000).
 	./$(BIN_DIR)/$(BINARY)
 
 run: build ## Build and run the binary with a larger corpus (15000).
-	./$(BIN_DIR)/$(BINARY) -limit 15000
+	./$(BIN_DIR)/$(BINARY) -limit 0 -batchSize 5000
 
 clean: ## Remove build artifacts.
 	rm -rf $(BIN_DIR)
