@@ -5,14 +5,18 @@ import (
 	"luen-search-engine/internal/text"
 )
 
+type DocID = string
+type Token = string
+type Position = int
+
 // PostingList stores document frequencies and postings for a single token.
 type PostingList struct {
 	DocFreq int
-	Docs    map[string]int
+	Docs    map[DocID][]Position
 }
 
 // InvertedIndex connects tokens to their posting lists.
-type InvertedIndex map[string]*PostingList
+type InvertedIndex map[Token]*PostingList
 
 // Build constructs an inverted index for the provided documents.
 func Build(docs []data.Document, tokenizer text.Tokenizer) InvertedIndex {
@@ -23,17 +27,21 @@ func Build(docs []data.Document, tokenizer text.Tokenizer) InvertedIndex {
 		tokensBody, _ := tokenizer.Tokenize(doc.Text)
 		tokens = append(tokens, tokensBody...)
 
-		for _, token := range tokens {
+		for i, token := range tokens {
 			posting, ok := idx[token]
 			if !ok {
+				positionList := make([]Position, 0)
+				positionList = append(positionList, Position(i))
 				posting = &PostingList{
-					Docs: make(map[string]int),
+					Docs: make(map[DocID][]Position),
 				}
+				posting.Docs[doc.ID] = positionList
 				idx[token] = posting
 			}
 
-			count, seen := posting.Docs[doc.ID]
-			posting.Docs[doc.ID] = count + 1
+			positions, seen := posting.Docs[doc.ID]
+			positions = append(positions, i)
+			posting.Docs[doc.ID] = positions
 			if !seen {
 				posting.DocFreq++
 			}
