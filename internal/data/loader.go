@@ -29,8 +29,8 @@ type Dataset struct {
 
 // LoadInBatches processes a file in batches, calling processBatch for each batch.
 // This allows incremental processing of large datasets that don't fit in memory.
-// Unlike our previous approach we now possibly have the full index
-// but only a shallow dataset, without the actual text of a document.
+// Unlike the previous approach, this builds the full index incrementally
+// while keeping only lightweight metadata (without document text) in the dataset.
 func LoadInBatches(path string, batchSize int, totalLimit int, processBatch func(batch []Document) error) (*Dataset, error) {
 	if batchSize <= 0 {
 		return nil, errors.New("batchSize must be positive")
