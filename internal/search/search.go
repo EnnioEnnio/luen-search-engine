@@ -23,7 +23,7 @@ type Result struct {
 	Matches            []Match
 }
 
-// PreprocessQuery returns a List of maps(key: docID, value: Match), for each token one list
+// PreprocessQuery returns a list of maps(key: docID, value: Match), for each token one list
 func PreprocessQuery(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]map[string]Match, []bool) {
 	tokens, isNegated := tokenizer.Tokenize(query)
 	docLists := make([]map[string]Match, 0, len(tokens))
