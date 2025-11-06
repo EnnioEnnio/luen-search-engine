@@ -24,6 +24,9 @@ Optional flags:
 - `-data` – path to the TSV file if you stored it elsewhere
 - `-limit` – number of documents to ingest (default 1000, set to 0 for all rows)
 
+Command to use the limit flag:
+`make build && ./bin/luen -limit 10000`
+
 Once the index is ready you can enter search terms. Use `>exit` (just like the
 Python implementation) or press `Ctrl+D` to quit.
 
@@ -34,11 +37,3 @@ Python implementation) or press `Ctrl+D` to quit.
 - `internal/index` – inverted index builder
 - `internal/search` – query evaluation and ranking
 - `internal/output` – CLI rendering helpers
-
-## Differences from the Python Baseline
-
-- Uses Go's standard library instead of pandas/whoosh.
-- Stopwords are approximated with a small built-in list.
-- Text tokenisation is Unicode-aware but simplified relative to Whoosh.
-
-These changes keep the experience close to the original while staying dependency-free.
