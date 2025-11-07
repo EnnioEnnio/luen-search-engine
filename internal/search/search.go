@@ -129,83 +129,97 @@ func processORQuery(docLists []map[string]Match) []Result {
 
 func processPhraseQuery(docLists []map[string]Match) []Result {
 	results := make([]Result, 0)
-	for docID, headMatch := range docLists[0] {
-		missing := false
-		matches := make([]Match, 0)
-		for i, docs := range docLists[1:] { // iterate over other tokens results
-			actualIndex := i + 1
-			match, found := docs[docID]
-			if !found {
-				missing = true
+
+	// For each document that contains the first token, try to find phrase occurrences
+	for docID := range docLists[0] {
+		// collect the position lists for each token in the phrase for this doc
+		tokenCount := len(docLists)
+		positions := make([][]int, tokenCount)
+		tokens := make([]string, tokenCount)
+		present := true
+
+		for ti := 0; ti < tokenCount; ti++ {
+			match, ok := docLists[ti][docID]
+			if !ok {
+				present = false
 				break
 			}
-
-			allowedPositionsHead := make(map[int]struct{}, 0)
-			for _, q := range match.Positions {
-				allowedPositionsHead[q-actualIndex] = struct{}{}
-			}
-
-			allowedPositionsMatch := make(map[int]struct{}, 0)
-			for _, p := range headMatch.Positions {
-				allowedPositionsMatch[p+actualIndex] = struct{}{}
-			}
-
-			// if the next token does not appear at the expected position, remove the position from the head positions
-			newHeadPositions := slices.DeleteFunc(headMatch.Positions, func(p int) bool {
-				_, ok := allowedPositionsHead[p]
-				return !ok
-			})
-
-			newMatchPositions := slices.DeleteFunc(match.Positions, func(p int) bool {
-				_, ok := allowedPositionsMatch[p]
-				return !ok
-			})
-			headMatch.Positions = newHeadPositions
-			match.Positions = newMatchPositions
-
-			if len(headMatch.Positions) == 0 || len(match.Positions) == 0 {
-				missing = true
-				break
-			}
-
-			match.Frequency = len(match.Positions)
-			matches = append(matches, match)
-
+			positions[ti] = match.Positions
+			tokens[ti] = match.Token
 		}
-
-		if missing {
-			continue
-		}
-		total := len(headMatch.Positions)
-		headMatch.Frequency = len(headMatch.Positions)
-		matches = append([]Match{headMatch}, matches...)
-
-		results = append(results, Result{
-			DocID:              docID,
-			TotalTermFrequency: total,
-			Matches:            matches,
-		})
-	}
-
-	// cleanup results: the positions in the matches need to be adjusted to only include positions that form the phrase
-	for ri := range results {
-		if len(results[ri].Matches) == 0 {
+		if !present {
 			continue
 		}
 
-		headPositions := results[ri].Matches[0].Positions
+		// prepare output matches (one per token) with empty positions to fill
+		outMatches := make([]Match, tokenCount)
+		for ti := 0; ti < tokenCount; ti++ {
+			outMatches[ti] = Match{Token: tokens[ti], Positions: make([]int, 0)}
+		}
 
-		for j := 1; j < len(results[ri].Matches); j++ {
-			actualIndex := j
-			match := &results[ri].Matches[j]
+		// pointers into each positions list
+		idxs := make([]int, tokenCount)
 
-			newPositions := slices.DeleteFunc(match.Positions, func(m int) bool {
-				return !slices.Contains(headPositions, m-actualIndex)
+	OUTER:
+		for {
+			// if any pointer is out of bounds, we're done
+			for ti := 0; ti < tokenCount; ti++ {
+				if idxs[ti] >= len(positions[ti]) {
+					break OUTER
+				}
+			}
+
+			// current positions
+			currentPositions := make([]int, tokenCount)
+			for ti := 0; ti < tokenCount; ti++ {
+				currentPositions[ti] = positions[ti][idxs[ti]]
+			}
+
+			// check whether the current positions form a phrase
+			ok := true
+			for ti := 1; ti < tokenCount; ti++ {
+				if currentPositions[ti] != currentPositions[0]+ti {
+					ok = false
+					break
+				}
+			}
+
+			if ok {
+				// record the matching positions for each token
+				for ti := 0; ti < tokenCount; ti++ {
+					outMatches[ti].Positions = append(outMatches[ti].Positions, currentPositions[ti])
+				}
+				// advance all pointers to look for next (this allows overlapping phrases)
+				for ti := 0; ti < tokenCount; ti++ {
+					idxs[ti]++
+				}
+				continue
+			}
+
+			// not a match: advance the pointer(s) at the minimum current position to try to align
+			minPos := currentPositions[0]
+			minIdx := 0
+			for ti := 1; ti < tokenCount; ti++ {
+				if currentPositions[ti] < minPos {
+					minPos = currentPositions[ti]
+					minIdx = ti
+				}
+			}
+			idxs[minIdx]++
+		}
+
+		if len(outMatches[0].Positions) > 0 {
+			// set frequencies and total term frequency (number of phrase occurrences)
+			total := len(outMatches[0].Positions)
+			for ti := 0; ti < tokenCount; ti++ {
+				outMatches[ti].Frequency = len(outMatches[ti].Positions)
+			}
+
+			results = append(results, Result{
+				DocID:              docID,
+				TotalTermFrequency: total,
+				Matches:            outMatches,
 			})
-
-			match.Positions = newPositions
-			match.Frequency = len(newPositions)
-			fmt.Print("match: ", *match, "\n")
 		}
 	}
 
