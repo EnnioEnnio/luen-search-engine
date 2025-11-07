@@ -30,12 +30,9 @@ func Build(docs []data.Document, tokenizer text.Tokenizer) InvertedIndex {
 		for i, token := range tokens {
 			posting, ok := idx[token]
 			if !ok {
-				positionList := make([]Position, 0)
-				positionList = append(positionList, Position(i))
 				posting = &PostingList{
 					Docs: make(map[DocID][]Position),
 				}
-				posting.Docs[doc.ID] = positionList
 				idx[token] = posting
 			}
 

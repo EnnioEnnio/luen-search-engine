@@ -129,7 +129,6 @@ func processORQuery(docLists []map[string]Match) []Result {
 
 func processPhraseQuery(docLists []map[string]Match) []Result {
 	results := make([]Result, 0)
-
 	for docID, headMatch := range docLists[0] {
 		missing := false
 		matches := make([]Match, 0)
@@ -141,35 +140,45 @@ func processPhraseQuery(docLists []map[string]Match) []Result {
 				break
 			}
 
+			allowedPositionsHead := make(map[int]struct{}, 0)
+			for _, q := range match.Positions {
+				allowedPositionsHead[q-actualIndex] = struct{}{}
+			}
+
+			allowedPositionsMatch := make(map[int]struct{}, 0)
+			for _, p := range headMatch.Positions {
+				allowedPositionsMatch[p+actualIndex] = struct{}{}
+			}
+
 			// if the next token does not appear at the expected position, remove the position from the head positions
-			headMatch.Positions = slices.DeleteFunc(headMatch.Positions, func(p int) bool {
-				if !slices.Contains(match.Positions, p+actualIndex) {
-					return true
-				}
-				return false
+			newHeadPositions := slices.DeleteFunc(headMatch.Positions, func(p int) bool {
+				_, ok := allowedPositionsHead[p]
+				return !ok
 			})
 
-			match.Positions = slices.DeleteFunc(match.Positions, func(p int) bool {
-				if !slices.Contains(headMatch.Positions, p-actualIndex) {
-					return true
-				}
-				return false
+			newMatchPositions := slices.DeleteFunc(match.Positions, func(p int) bool {
+				_, ok := allowedPositionsMatch[p]
+				return !ok
 			})
+			headMatch.Positions = newHeadPositions
+			match.Positions = newMatchPositions
 
-			if len(headMatch.Positions) == 0 {
+			if len(headMatch.Positions) == 0 || len(match.Positions) == 0 {
 				missing = true
 				break
 			}
 
 			match.Frequency = len(match.Positions)
-
 			matches = append(matches, match)
+
 		}
 
 		if missing {
 			continue
 		}
 		total := len(headMatch.Positions)
+		headMatch.Frequency = len(headMatch.Positions)
+		matches = append([]Match{headMatch}, matches...)
 
 		results = append(results, Result{
 			DocID:              docID,
@@ -177,6 +186,29 @@ func processPhraseQuery(docLists []map[string]Match) []Result {
 			Matches:            matches,
 		})
 	}
+
+	// cleanup results: the positions in the matches need to be adjusted to only include positions that form the phrase
+	for ri := range results {
+		if len(results[ri].Matches) == 0 {
+			continue
+		}
+
+		headPositions := results[ri].Matches[0].Positions
+
+		for j := 1; j < len(results[ri].Matches); j++ {
+			actualIndex := j
+			match := &results[ri].Matches[j]
+
+			newPositions := slices.DeleteFunc(match.Positions, func(m int) bool {
+				return !slices.Contains(headPositions, m-actualIndex)
+			})
+
+			match.Positions = newPositions
+			match.Frequency = len(newPositions)
+			fmt.Print("match: ", *match, "\n")
+		}
+	}
+
 	return results
 
 }
