@@ -9,7 +9,7 @@ type DocID = string
 type Token = string
 type Position = int
 
-// PostingList stores document frequencies and postings for a single token.
+// PostingList stores document frequencies and positions within each document for a single token.
 type PostingList struct {
 	DocFreq int
 	Docs    map[DocID][]Position
@@ -37,8 +37,7 @@ func Build(docs []data.Document, tokenizer text.Tokenizer) InvertedIndex {
 			}
 
 			positions, seen := posting.Docs[doc.ID]
-			positions = append(positions, i)
-			posting.Docs[doc.ID] = positions
+			posting.Docs[doc.ID] = append(positions, i)
 			if !seen {
 				posting.DocFreq++
 			}

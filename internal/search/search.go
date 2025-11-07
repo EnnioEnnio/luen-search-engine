@@ -10,24 +10,27 @@ import (
 	"luen-search-engine/internal/text"
 )
 
+type DocID = string
+type Token = string
+
 // Match keeps track of how often a token occurred in a document.
 type Match struct {
-	Token     string
+	Token     Token
 	Frequency int
 	Positions []int
 }
 
 // Result represents the aggregated scores for a matching document.
 type Result struct {
-	DocID              string
+	DocID              DocID
 	TotalTermFrequency int // used for ranking only
 	Matches            []Match
 }
 
 // PreprocessQuery returns a list of maps(key: docID, value: Match), for each token one list
-func PreprocessQuery(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]map[string]Match, []bool) {
+func PreprocessQuery(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]map[DocID]Match, []bool) {
 	tokens, isNegated := tokenizer.Tokenize(query)
-	docLists := make([]map[string]Match, 0, len(tokens))
+	docLists := make([]map[DocID]Match, 0, len(tokens))
 
 	if len(tokens) == 0 {
 		return docLists, isNegated
@@ -51,7 +54,7 @@ func PreprocessQuery(idx index.InvertedIndex, tokenizer text.Tokenizer, query st
 			continue
 		}
 
-		matches := make(map[string]Match, len(posting.Docs))
+		matches := make(map[DocID]Match, len(posting.Docs))
 		for docID, positions := range posting.Docs {
 			matches[docID] = Match{Token: token, Frequency: len(positions), Positions: positions}
 		}
@@ -61,7 +64,7 @@ func PreprocessQuery(idx index.InvertedIndex, tokenizer text.Tokenizer, query st
 	return docLists, isNegated
 }
 
-func processANDQuery(docLists []map[string]Match, isNegated []bool) []Result {
+func processANDQuery(docLists []map[DocID]Match, isNegated []bool) []Result {
 	results := make([]Result, 0)
 
 	for docID, headMatch := range docLists[0] { // iterate over first token's results
@@ -103,8 +106,8 @@ func processANDQuery(docLists []map[string]Match, isNegated []bool) []Result {
 	return results
 }
 
-func processORQuery(docLists []map[string]Match) []Result {
-	result_map := make(map[string]Result, 0)
+func processORQuery(docLists []map[DocID]Match) []Result {
+	result_map := make(map[DocID]Result, 0)
 
 	for _, docList := range docLists {
 		for docID, match := range docList {
@@ -127,7 +130,7 @@ func processORQuery(docLists []map[string]Match) []Result {
 	return results
 }
 
-func processPhraseQuery(docLists []map[string]Match) []Result {
+func processPhraseQuery(docLists []map[DocID]Match) []Result {
 	results := make([]Result, 0)
 
 	// For each document that contains the first token, try to find phrase occurrences
@@ -135,19 +138,19 @@ func processPhraseQuery(docLists []map[string]Match) []Result {
 		// collect the position lists for each token in the phrase for this doc
 		tokenCount := len(docLists)
 		positions := make([][]int, tokenCount)
-		tokens := make([]string, tokenCount)
-		present := true
+		tokens := make([]Token, tokenCount)
+		missing := false
 
 		for ti := 0; ti < tokenCount; ti++ {
 			match, ok := docLists[ti][docID]
 			if !ok {
-				present = false
+				missing = true
 				break
 			}
 			positions[ti] = match.Positions
 			tokens[ti] = match.Token
 		}
-		if !present {
+		if missing {
 			continue
 		}
 
@@ -289,7 +292,7 @@ func Search(idx index.InvertedIndex, tokenizer text.Tokenizer, query string, mod
 }
 
 // TO BE REMOVED!!!!!
-// This is just a temporary workaround until the query parser is implemented to proper handle phrase queries within the full query string.
+// This is just a temporary workaround until the query parser is implemented to properly handle phrase queries within the full query string.
 func SearchPhrase(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]Result, int, error) {
 	lowerQuery := strings.ToLower(query)
 	// Split by whitespace and check if any token is exactly "or"
