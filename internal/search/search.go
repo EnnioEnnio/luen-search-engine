@@ -10,23 +10,27 @@ import (
 	"luen-search-engine/internal/text"
 )
 
+type DocID = string
+type Token = string
+
 // Match keeps track of how often a token occurred in a document.
 type Match struct {
-	Token     string
+	Token     Token
 	Frequency int
+	Positions []int
 }
 
 // Result represents the aggregated scores for a matching document.
 type Result struct {
-	DocID              string
+	DocID              DocID
 	TotalTermFrequency int // used for ranking only
 	Matches            []Match
 }
 
 // PreprocessQuery returns a list of maps(key: docID, value: Match), for each token one list
-func PreprocessQuery(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]map[string]Match, []bool) {
+func PreprocessQuery(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]map[DocID]Match, []bool) {
 	tokens, isNegated := tokenizer.Tokenize(query)
-	docLists := make([]map[string]Match, 0, len(tokens))
+	docLists := make([]map[DocID]Match, 0, len(tokens))
 
 	if len(tokens) == 0 {
 		return docLists, isNegated
@@ -50,9 +54,9 @@ func PreprocessQuery(idx index.InvertedIndex, tokenizer text.Tokenizer, query st
 			continue
 		}
 
-		matches := make(map[string]Match, len(posting.Docs))
-		for docID, freq := range posting.Docs {
-			matches[docID] = Match{Token: token, Frequency: freq}
+		matches := make(map[DocID]Match, len(posting.Docs))
+		for docID, positions := range posting.Docs {
+			matches[docID] = Match{Token: token, Frequency: len(positions), Positions: positions}
 		}
 		docLists = append(docLists, matches)
 	}
@@ -60,7 +64,7 @@ func PreprocessQuery(idx index.InvertedIndex, tokenizer text.Tokenizer, query st
 	return docLists, isNegated
 }
 
-func processANDQuery(docLists []map[string]Match, isNegated []bool) []Result {
+func processANDQuery(docLists []map[DocID]Match, isNegated []bool) []Result {
 	results := make([]Result, 0)
 
 	for docID, headMatch := range docLists[0] { // iterate over first token's results
@@ -102,8 +106,8 @@ func processANDQuery(docLists []map[string]Match, isNegated []bool) []Result {
 	return results
 }
 
-func processORQuery(docLists []map[string]Match) []Result {
-	result_map := make(map[string]Result, 0)
+func processORQuery(docLists []map[DocID]Match) []Result {
+	result_map := make(map[DocID]Result, 0)
 
 	for _, docList := range docLists {
 		for docID, match := range docList {
@@ -126,10 +130,114 @@ func processORQuery(docLists []map[string]Match) []Result {
 	return results
 }
 
+func processPhraseQuery(docLists []map[DocID]Match) []Result {
+	results := make([]Result, 0)
+
+	// For each document that contains the first token, try to find phrase occurrences
+	for docID := range docLists[0] {
+		// collect the position lists for each token in the phrase for this doc
+		tokenCount := len(docLists)
+		positions := make([][]int, tokenCount)
+		tokens := make([]Token, tokenCount)
+		missing := false
+
+		for ti := 0; ti < tokenCount; ti++ {
+			match, ok := docLists[ti][docID]
+			if !ok {
+				missing = true
+				break
+			}
+			positions[ti] = match.Positions
+			tokens[ti] = match.Token
+		}
+		if missing {
+			continue
+		}
+
+		// prepare output matches (one per token) with empty positions to fill
+		outMatches := make([]Match, tokenCount)
+		for ti := 0; ti < tokenCount; ti++ {
+			outMatches[ti] = Match{Token: tokens[ti], Positions: make([]int, 0)}
+		}
+
+		// pointers into each positions list
+		idxs := make([]int, tokenCount)
+
+	OUTER:
+		for {
+			// if any pointer is out of bounds, we're done
+			for ti := 0; ti < tokenCount; ti++ {
+				if idxs[ti] >= len(positions[ti]) {
+					break OUTER
+				}
+			}
+
+			// current positions
+			currentPositions := make([]int, tokenCount)
+			for ti := 0; ti < tokenCount; ti++ {
+				currentPositions[ti] = positions[ti][idxs[ti]]
+			}
+
+			// check whether the current positions form a phrase
+			ok := true
+			for ti := 1; ti < tokenCount; ti++ {
+				if currentPositions[ti] != currentPositions[0]+ti {
+					ok = false
+					break
+				}
+			}
+
+			if ok {
+				// record the matching positions for each token
+				for ti := 0; ti < tokenCount; ti++ {
+					outMatches[ti].Positions = append(outMatches[ti].Positions, currentPositions[ti])
+				}
+				// advance all pointers to look for next (this allows overlapping phrases)
+				for ti := 0; ti < tokenCount; ti++ {
+					idxs[ti]++
+				}
+				continue
+			}
+
+			// not a match: advance the pointer(s) at the minimum current position to try to align
+			minPos := currentPositions[0]
+			minIdx := 0
+			for ti := 1; ti < tokenCount; ti++ {
+				if currentPositions[ti] < minPos {
+					minPos = currentPositions[ti]
+					minIdx = ti
+				}
+			}
+			idxs[minIdx]++
+		}
+
+		if len(outMatches[0].Positions) > 0 {
+			// set frequencies and total term frequency (number of phrase occurrences)
+			total := len(outMatches[0].Positions)
+			for ti := 0; ti < tokenCount; ti++ {
+				outMatches[ti].Frequency = len(outMatches[ti].Positions)
+			}
+
+			results = append(results, Result{
+				DocID:              docID,
+				TotalTermFrequency: total,
+				Matches:            outMatches,
+			})
+		}
+	}
+
+	return results
+
+}
+
 // Search finds documents that contain all query tokens and orders them by frequency.
-func Search(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]Result, int, error) {
+func Search(idx index.InvertedIndex, tokenizer text.Tokenizer, query string, mode string) ([]Result, int, error) {
 	if query == "" {
 		return nil, 0, fmt.Errorf("query must not be empty")
+	}
+
+	if mode == "phrase" {
+		return SearchPhrase(idx, tokenizer, query)
 	}
 
 	// Check for OR operator before tokenization (tokenizer removes stopwords)
@@ -164,6 +272,49 @@ func Search(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]
 	} else {
 		results = processANDQuery(docLists, isNegated)
 	}
+
+	// sort results by frequency
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].TotalTermFrequency == results[j].TotalTermFrequency {
+			return results[i].DocID < results[j].DocID
+		}
+		return results[i].TotalTermFrequency > results[j].TotalTermFrequency
+	})
+
+	resultCount := len(results)
+
+	// return top 10 results
+	if len(results) > 10 {
+		results = results[:10]
+	}
+
+	return results, resultCount, nil
+}
+
+// TO BE REMOVED!!!!!
+// This is just a temporary workaround until the query parser is implemented to properly handle phrase queries within the full query string.
+func SearchPhrase(idx index.InvertedIndex, tokenizer text.Tokenizer, query string) ([]Result, int, error) {
+	lowerQuery := strings.ToLower(query)
+	// Split by whitespace and check if any token is exactly "or"
+	queryTokens := strings.Fields(lowerQuery)
+	for _, token := range queryTokens {
+		if token == "or" || token == "-or" {
+			return nil, 0, fmt.Errorf("OR operator is not supported in phrase queries")
+		}
+	}
+
+	docLists, isNegated := PreprocessQuery(idx, tokenizer, query)
+	if len(docLists) == 0 {
+		return nil, 0, nil
+	}
+
+	if slices.Contains(isNegated, true) {
+		return nil, 0, fmt.Errorf("phrase queries do not support negation")
+	}
+
+	results := make([]Result, 0)
+
+	results = processPhraseQuery(docLists)
 
 	// sort results by frequency
 	sort.Slice(results, func(i, j int) bool {

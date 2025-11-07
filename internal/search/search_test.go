@@ -2,6 +2,7 @@ package search
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -20,7 +21,7 @@ func TestSearchReturnsErrorOnEmptyQuery(t *testing.T) {
 	idx := make(index.InvertedIndex)
 	tokenizer := text.NewTokenizer()
 
-	_, _, err := Search(idx, tokenizer, "")
+	_, _, err := Search(idx, tokenizer, "", "single")
 	if err == nil {
 		t.Fatal("expected error for empty query, got nil")
 	}
@@ -39,7 +40,7 @@ func TestSearchReturnsResultsSortedByScore(t *testing.T) {
 	idx := buildIndexForTests(t, docs)
 	tokenizer := text.NewTokenizer()
 
-	results, total, err := Search(idx, tokenizer, "search engine")
+	results, total, err := Search(idx, tokenizer, "search engine", "single")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -70,7 +71,7 @@ func TestSearchMissingTokenReturnsNil(t *testing.T) {
 	idx := buildIndexForTests(t, docs)
 	tokenizer := text.NewTokenizer()
 
-	results, total, err := Search(idx, tokenizer, "missing token")
+	results, total, err := Search(idx, tokenizer, "missing token", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -95,7 +96,7 @@ func TestSearchLimitsToTopTenResults(t *testing.T) {
 	idx := buildIndexForTests(t, docs)
 	tokenizer := text.NewTokenizer()
 
-	results, total, err := Search(idx, tokenizer, "term")
+	results, total, err := Search(idx, tokenizer, "term", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -117,7 +118,7 @@ func TestSearchWithNegatedToken(t *testing.T) {
 	idx := buildIndexForTests(t, docs)
 	tokenizer := text.NewTokenizer()
 
-	results, total, err := Search(idx, tokenizer, "cat -dog")
+	results, total, err := Search(idx, tokenizer, "cat -dog", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -142,7 +143,7 @@ func TestSearchWithOnlyNegatedTokensReturnsError(t *testing.T) {
 	idx := buildIndexForTests(t, docs)
 	tokenizer := text.NewTokenizer()
 
-	_, _, err := Search(idx, tokenizer, "-cat -dog")
+	_, _, err := Search(idx, tokenizer, "-cat -dog", "")
 	if err == nil {
 		t.Fatal("expected error for query with only negations, got nil")
 	}
@@ -159,7 +160,7 @@ func TestSearchWithORAndNegationReturnsError(t *testing.T) {
 	idx := buildIndexForTests(t, docs)
 	tokenizer := text.NewTokenizer()
 
-	_, _, err := Search(idx, tokenizer, "cat or -dog")
+	_, _, err := Search(idx, tokenizer, "cat or -dog", "")
 	if err == nil {
 		t.Fatal("expected error for OR query with negation, got nil")
 	}
@@ -178,7 +179,7 @@ func TestSearchWithMultipleNegatedTokens(t *testing.T) {
 	idx := buildIndexForTests(t, docs)
 	tokenizer := text.NewTokenizer()
 
-	results, total, err := Search(idx, tokenizer, "cat -dog -bird")
+	results, total, err := Search(idx, tokenizer, "cat -dog -bird", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -192,5 +193,50 @@ func TestSearchWithMultipleNegatedTokens(t *testing.T) {
 
 	if results[0].DocID != "docB" {
 		t.Fatalf("expected docB (has cat but not dog or bird), got %s", results[0].DocID)
+	}
+}
+
+func TestSearchPhraseQueryMatchesContiguousTokens(t *testing.T) {
+	docs := []data.Document{
+		{ID: "docA", Title: "", Text: "quick brown fox"},
+		{ID: "docB", Title: "", Text: "quick fox brown"},
+		{ID: "docC", Title: "", Text: "quick brown quick brown"},
+	}
+
+	idx := buildIndexForTests(t, docs)
+	tokenizer := text.NewTokenizer()
+
+	results, total, err := Search(idx, tokenizer, "quick brown", "phrase")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if total != 2 {
+		t.Fatalf("expected total results to be 2 (docA and docC), got %d", total)
+	}
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+
+	// docC should come first because it contains the phrase twice
+	if results[0].DocID != "docC" || results[0].TotalTermFrequency != 2 {
+		t.Fatalf("unexpected first result: %+v", results[0])
+	}
+	// check positions for docC: quick at positions 0 and 2, brown at 1 and 3
+	if len(results[0].Matches) < 2 {
+		t.Fatalf("expected at least 2 token matches in docC, got %v", results[0].Matches)
+	}
+	head := results[0].Matches[0]
+	if head.Token != "quick" || head.Frequency != 2 || !slices.Equal(head.Positions, []int{0, 2}) {
+		t.Fatalf("unexpected head match for docC: %+v", head)
+	}
+	sec := results[0].Matches[1]
+	if sec.Token != "brown" || sec.Frequency != 2 || !slices.Equal(sec.Positions, []int{1, 3}) {
+		t.Fatalf("unexpected second match for docC: %+v", sec)
+	}
+
+	// docA should be the second result with a single occurrence
+	if results[1].DocID != "docA" || results[1].TotalTermFrequency != 1 {
+		t.Fatalf("unexpected second result: %+v", results[1])
 	}
 }

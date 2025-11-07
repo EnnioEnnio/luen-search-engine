@@ -9,7 +9,7 @@ build: ## Build the project binary.
 	$(GO) build -o $(BIN_DIR)/$(BINARY) .
 
 test: ## Run all Go tests.
-	$(GO) test ./...
+	$(GO) test ./... -v
 
 lint: ## Run static analysis checks.
 	$(GO) vet ./...

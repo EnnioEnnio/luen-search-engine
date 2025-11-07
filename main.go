@@ -20,7 +20,14 @@ import (
 func main() {
 	dataPath := flag.String("data", "data/msmarco-docs.tsv", "Path to the MS MARCO TSV file")
 	limit := flag.Int("limit", 1000, "Maximum number of documents to load (0 means all)")
+	mode := flag.String("mode", "single", "Chose query mode between single and phrase (for phrase queries). Default is single mode.")
+
 	flag.Parse()
+
+	if *mode != "single" && *mode != "phrase" {
+		log.Fatalf("invalid mode: %s", *mode)
+	}
+	fmt.Printf("Using mode: %s\n", *mode)
 
 	tokenizer := text.NewTokenizer()
 
@@ -57,7 +64,7 @@ func main() {
 			return
 		}
 
-		results, total, err := search.Search(inverted, tokenizer, searchTerm)
+		results, total, err := search.Search(inverted, tokenizer, searchTerm, *mode)
 		if err != nil {
 			fmt.Printf("Error while searching: %v\n", err)
 			continue
