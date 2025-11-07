@@ -35,11 +35,11 @@ func TestBuildCreatesPostingLists(t *testing.T) {
 	if searchPosting.DocFreq != 2 {
 		t.Fatalf("expected doc freq 2 for 'search', got %d", searchPosting.DocFreq)
 	}
-	if got := searchPosting.Docs["docA"]; got != 2 {
-		t.Fatalf("expected docA frequency 2 for 'search', got %d", got)
+	if got := searchPosting.Docs["docA"]; len(got) != 2 {
+		t.Fatalf("expected docA frequency 2 for 'search', got %d", len(got))
 	}
-	if got := searchPosting.Docs["docB"]; got != 1 {
-		t.Fatalf("expected docB frequency 1 for 'search', got %d", got)
+	if got := searchPosting.Docs["docB"]; len(got) != 1 {
+		t.Fatalf("expected docB frequency 1 for 'search', got %d", len(got))
 	}
 
 	enginePosting, ok := idx["engine"]
