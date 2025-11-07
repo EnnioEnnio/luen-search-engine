@@ -1,4 +1,4 @@
-.PHONY: build test lint format tidy run clean help
+.PHONY: build test lint format tidy run clean help bench
 
 GO ?= go
 BIN_DIR := bin
@@ -25,6 +25,19 @@ dev: build ## Build and run the binary with a smaller corpus (1000).
 
 run: build ## Build and run the binary with a larger corpus (15000).
 	./$(BIN_DIR)/$(BINARY) -limit 15000
+
+bench: ## Run deterministic index + query benchmarks against the 100k MS MARCO subset.
+	@if [ ! -f data/msmarco-docs-bench-100000.tsv ]; then \
+		echo "Missing benchmark dataset at data/msmarco-docs-bench-100000.tsv"; \
+		echo "Create it with: head -n 100000 data/msmarco-docs.tsv > data/msmarco-docs-bench-100000.tsv"; \
+		exit 1; \
+	fi
+	@if [ ! -f data/msmarco-queries-bench-1000.txt ]; then \
+		echo "Missing benchmark queries file at data/msmarco-queries-bench-1000.txt"; \
+		echo "Generate it with: scripts/generate-bench-queries.sh"; \
+		exit 1; \
+	fi
+	$(GO) test ./internal/index ./internal/search -run=^$$ -bench=. -benchmem
 
 clean: ## Remove build artifacts.
 	rm -rf $(BIN_DIR)
