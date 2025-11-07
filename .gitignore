@@ -32,5 +32,6 @@ go.work.sum
 .vscode/
 .DS_Store
 
-/data
+/data/msmarco-docs.tsv
+/data/msmarco-docs-bench-100000.tsv
 /bin
