@@ -41,5 +41,5 @@ func main() {
 
 func writeQueries(path string, queries []string) error {
 	content := strings.Join(queries, "\n") + "\n"
-	return os.WriteFile(path, []byte(content), 0o600)
+	return os.WriteFile(path, []byte(content), 0o644)
 }
