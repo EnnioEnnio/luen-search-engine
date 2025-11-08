@@ -10,6 +10,8 @@ and provides a CLI search interface across query terms.
 
 - Go 1.25+
 - The `msmarco-docs.tsv` [dataset](https://microsoft.github.io/msmarco/Datasets.html#datasets). Place it anywhere convenient – by default the program looks for `data/msmarco-docs.tsv`.
+- A benchmark subset at `data/msmarco-docs-bench-100000.tsv` (first 100k rows). You can create it with `head -n 100000 data/msmarco-docs.tsv > data/msmarco-docs-bench-100000.tsv`.
+- A deterministic query list at `data/msmarco-queries-bench-1000.txt`, generated via `scripts/generate-bench-queries.sh` (requires the benchmark subset).
 
 ## Getting Started
 
@@ -20,6 +22,7 @@ make help          # Show available commands
 make build         # Compile the binary
 make run           # Build and run with default settings
 make test          # Run all tests
+make bench         # Run performance benchmarks
 make lint          # Run linter
 ```
 
@@ -43,6 +46,8 @@ go run . -limit 100000 -mode phrase
 - `-data` – Path to the TSV file (default: `data/msmarco-docs.tsv`)
 - `-limit` – Maximum number of documents to load (default: 1000, set to 0 for all)
 - `-mode` – Search mode (default: "single" for AND/OR search of multiple search terms, "phrase" for phrase search)
+- `-cpuprofile` – Path to write a CPU profile (disabled by default)
+- `-memprofile` – Path to write a heap profile (disabled by default)
 
 > Note: The -mode flag is to be discontinued in future versions. Phrase search will be included via a query parser.
 
@@ -57,6 +62,11 @@ Search: machine learning algorithms
 📊 Found 42 result(s)
 ...
 ```
+
+## Profiling
+
+- `make bench` exercises the deterministic index + query workloads described in `profile.md`.
+- For detailed instructions on CLI flags, `go tool pprof`, tracing, and Perfetto-style visualization, see [profile.md](profile.md).
 
 ## Performance
 
