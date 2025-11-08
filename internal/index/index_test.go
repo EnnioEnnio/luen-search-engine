@@ -36,7 +36,7 @@ func TestBuildCreatesPostingLists(t *testing.T) {
 		t.Fatalf("expected doc freq 2 for 'search', got %d", searchPosting.DocFreq)
 	}
 	if got := searchPosting.Docs[123]; len(got) != 2 {
-		t.Fatalf("expected docA frequency 2 for 'search', got %d", len(got))
+		t.Fatalf("expected 123 frequency 2 for 'search', got %d", len(got))
 	}
 	if got := searchPosting.Docs[456]; len(got) != 1 {
 		t.Fatalf("expected docB frequency 1 for 'search', got %d", len(got))
