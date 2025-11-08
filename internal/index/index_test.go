@@ -39,7 +39,7 @@ func TestBuildCreatesPostingLists(t *testing.T) {
 		t.Fatalf("expected 123 frequency 2 for 'search', got %d", len(got))
 	}
 	if got := searchPosting.Docs[456]; len(got) != 1 {
-		t.Fatalf("expected docB frequency 1 for 'search', got %d", len(got))
+		t.Fatalf("expected 456 frequency 1 for 'search', got %d", len(got))
 	}
 
 	enginePosting, ok := idx["engine"]
