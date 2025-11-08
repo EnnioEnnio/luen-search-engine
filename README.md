@@ -23,6 +23,10 @@ make test          # Run all tests
 make lint          # Run linter
 ```
 
+### Dataset setup
+
+Run `scripts/preprocess_dataset.sh` before indexing to strip the leading `D` from MS MARCO document IDs and write a `-preprocessed` TSV. This makes it cheaper to store IDs as integers. It might take some time (10 minutes on Apple M1 Pro) on the full corpus.
+
 ### Running with custom parameters
 
 ```bash
