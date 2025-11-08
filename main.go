@@ -23,7 +23,7 @@ import (
 func main() {
 	dataPath := flag.String("data", "data/msmarco-docs-preprocessed.tsv", "Path to the MS MARCO TSV file")
 	limit := flag.Int("limit", 1000, "Maximum number of documents to load (0 means all)")
-	mode := flag.String("mode", "single", "Chose query mode between single and phrase (for phrase queries). Default is single mode.")
+	mode := flag.String("mode", "single", "Choose query mode between single and phrase (for phrase queries). Default is single mode.")
 	cpuprofile := flag.String("cpuprofile", "", "Write CPU profile to file")
 	memprofile := flag.String("memprofile", "", "Write memory profile to file")
 
