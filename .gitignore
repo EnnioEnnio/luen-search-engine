@@ -34,4 +34,5 @@ go.work.sum
 
 /data/msmarco-docs.tsv
 /data/msmarco-docs-bench-100000.tsv
+/data/msmarco-docs-preprocessed.tsv
 /bin

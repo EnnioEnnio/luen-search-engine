@@ -10,6 +10,8 @@ and provides a CLI search interface across query terms.
 
 - Go 1.25+
 - The `msmarco-docs.tsv` [dataset](https://microsoft.github.io/msmarco/Datasets.html#datasets). Place it anywhere convenient – by default the program looks for `data/msmarco-docs.tsv`.
+
+For Benchmarking:
 - A benchmark subset at `data/msmarco-docs-bench-100000.tsv` (first 100k rows). You can create it with `head -n 100000 data/msmarco-docs.tsv > data/msmarco-docs-bench-100000.tsv`.
 - A deterministic query list at `data/msmarco-queries-bench-1000.txt`, generated via `scripts/generate-bench-queries.sh` (requires the benchmark subset).
 
