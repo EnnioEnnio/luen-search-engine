@@ -45,7 +45,7 @@ go run . -limit 100000 -mode phrase
 
 ### Command-line flags
 
-- `-data` – Path to the TSV file (default: `data/msmarco-docs.tsv`)
+- `-data` – Path to the TSV file (default: `data/msmarco-docs-preprocess.tsv`)
 - `-limit` – Maximum number of documents to load (default: 1000, set to 0 for all)
 - `-mode` – Search mode (default: "single" for AND/OR search of multiple search terms, "phrase" for phrase search)
 - `-cpuprofile` – Path to write a CPU profile (disabled by default)
