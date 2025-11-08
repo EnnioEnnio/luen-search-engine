@@ -2,11 +2,12 @@ package index
 
 import (
 	"luen-search-engine/internal/data"
+	"luen-search-engine/internal/model"
 	"luen-search-engine/internal/text"
 )
 
-type DocID = string
-type Token = string
+type DocID = model.DocID
+type Token = model.Token
 type Position = int
 
 // PostingList stores document frequencies and positions within each document for a single token.
