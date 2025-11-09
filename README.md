@@ -13,7 +13,7 @@ and provides a CLI search interface across query terms.
 
 For Benchmarking:
 - A benchmark subset at `data/msmarco-docs-bench-100000.tsv` (first 100k rows). You can create it with `head -n 100000 data/msmarco-docs.tsv > data/msmarco-docs-bench-100000.tsv`.
-- A deterministic query list at `data/msmarco-queries-bench-1000.txt`, generated via `scripts/generate-bench-queries.sh` (requires the benchmark subset).
+- A deterministic query list at `data/msmarco-queries-bench-1000.txt`, which is added to the repo for convenience and for reproducibility (generated your own via `scripts/generate-bench-queries.sh` requires the benchmark subset).
 
 ## Getting Started
 

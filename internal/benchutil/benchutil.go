@@ -54,8 +54,6 @@ func LoadDataset(tb testing.TB) *data.Dataset {
 	return dataset
 }
 
-// GenerateQueries builds a deterministic set of queries with varying lengths
-// (and occasional OR operators) derived from the dataset content.
 // BuildQueries builds a deterministic query slice without relying on testing helpers.
 func BuildQueries(docs []data.Document, tokenizer text.Tokenizer, count int) ([]string, error) {
 	if len(docs) == 0 {
