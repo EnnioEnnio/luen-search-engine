@@ -80,7 +80,7 @@ This invokes:
 Both benchmarks emit `ns/op`, `B/op`, and `allocs/op`. To capture profiles during these runs, append the usual Go test flags:
 
 ```bash
-go test ./internal/index ./internal/search \
+go test <./internal/index OR ./internal/search> \
   -run=^$ -bench=. -benchmem \
   -cpuprofile bench_cpu.pprof \
   -memprofile bench_mem.pprof
@@ -106,7 +106,7 @@ Now:
 ## 3. Workflow summary
 
 1. **Interactive diagnosis** – run the CLI with `-cpuprofile` / `-memprofile` to capture real usage, then inspect with `go tool pprof`.
-2. **Regression tracking** – run `make bench` (or the nightly GitHub Action) to benchmark the canonical workloads; add `-cpuprofile` / `-memprofile` / `-trace` when deeper analysis is needed.
-3. **Perfetto-like visualization** – use `go tool trace trace.out` locally or upload the trace to https://ui.perfetto.dev for a rich timeline.
+2. **Regression tracking** – run `make bench` to benchmark the canonical workloads; add `-cpuprofile` / `-memprofile` / `-trace` when deeper analysis is needed.
+3. **Perfetto-like visualization** – use `go tool trace trace.out` locally.
 
 Keep the generated `.pprof` / `.out` artifacts alongside your experiments so you can compare builds, share findings, or attach them to issues during performance investigations.
