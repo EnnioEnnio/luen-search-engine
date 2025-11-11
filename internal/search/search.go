@@ -203,7 +203,7 @@ func processPhraseQuery(docLists []map[DocID]Match) []Result {
 			minPos := currentPositions[0]
 			minIdx := 0
 			for ti := 1; ti < tokenCount; ti++ {
-				if currentPositions[ti] < minPos {
+				if currentPositions[ti] <= minPos {
 					minPos = currentPositions[ti]
 					minIdx = ti
 				}
