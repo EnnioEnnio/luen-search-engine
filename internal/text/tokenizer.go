@@ -11,7 +11,7 @@ type Tokenizer struct {
 }
 
 // NewTokenizer creates a tokenizer with a basic English stopword list.
-func NewTokenizer() Tokenizer {
+func NewTokenizer() *Tokenizer {
 	stop := []string{
 		"a", "an", "and", "are", "as", "at", "be", "but", "by", "for", "if", "in",
 		"into", "is", "it", "no", "not", "of", "on", "or", "such", "that", "the",
@@ -23,17 +23,14 @@ func NewTokenizer() Tokenizer {
 		stopSet[token] = struct{}{}
 	}
 
-	return Tokenizer{stopwords: stopSet}
+	return &Tokenizer{stopwords: stopSet}
 }
 
 // Tokenize returns normalized tokens extracted from the provided string.
-func (t Tokenizer) Tokenize(value string) ([]string, []bool) {
+func (t Tokenizer) Tokenize(value string) []string {
 	if value == "" {
-		return nil, nil
+		return nil
 	}
-
-	// Slice for keeping track of negated values (bool true)
-	isTokenNegated := make([]bool, 0)
 
 	lower := strings.ToLower(value)
 	tokens := make([]string, 0)
@@ -54,7 +51,6 @@ func (t Tokenizer) Tokenize(value string) ([]string, []bool) {
 			return
 		}
 		tokens = append(tokens, token)
-		isTokenNegated = append(isTokenNegated, isNegated)
 	}
 
 	for _, r := range lower {
@@ -66,5 +62,17 @@ func (t Tokenizer) Tokenize(value string) ([]string, []bool) {
 	}
 
 	flush()
-	return tokens, isTokenNegated
+	return tokens
+}
+
+// Convenience wrapper around Tokenize() for single terms (used in query tokenization)
+func (t Tokenizer) TokenizeTerm(value string) string {
+	tokenized := t.Tokenize(value)
+
+	if len(tokenized) == 0 {
+		return ""
+	} else {
+		return tokenized[0]
+	}
+
 }
