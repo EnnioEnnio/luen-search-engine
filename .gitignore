@@ -32,5 +32,12 @@ go.work.sum
 .vscode/
 .DS_Store
 
-/data
+# Excluding datasets and binaries
+/data/msmarco-docs.tsv
+/data/msmarco-docs-bench-100000.tsv
+/data/msmarco-docs-preprocessed.tsv
 /bin
+
+# Excluding Benchmark files 
+*.pprof
+*.svg

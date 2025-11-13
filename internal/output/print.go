@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"luen-search-engine/internal/data"
 	"luen-search-engine/internal/search"
@@ -15,13 +16,13 @@ const (
 )
 
 // PrintResults pretty-prints a list of results together with document metadata.
-func PrintResults(results []search.Result, dataset *data.Dataset, total int) {
+func PrintResults(results []search.Result, dataset *data.Dataset, total int, searchTime time.Duration) {
 	if total == 0 {
 		fmt.Println("No results found. Try another search term :)")
 		return
 	}
 
-	fmt.Printf("\n📊 Found %d result(s)\n", total)
+	fmt.Printf("\n📊 Found %d result(s) in %s\n", total, searchTime)
 	fmt.Printf("%s%s%s\n", colorCyan, strings.Repeat("═", 80), colorReset)
 
 	for i, result := range results {
