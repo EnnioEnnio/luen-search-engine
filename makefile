@@ -29,7 +29,7 @@ run: build ## Build and run the binary with a larger corpus (15000).
 bench: ## Run deterministic index + query benchmarks against the 100k MS MARCO subset.
 	@if [ ! -f data/msmarco-docs-bench-100000.tsv ]; then \
 		echo "Missing benchmark dataset at data/msmarco-docs-bench-100000.tsv"; \
-		echo "Create it with: head -n 100000 data/msmarco-docs.tsv > data/msmarco-docs-bench-100000.tsv"; \
+		echo "Create it with: head -n 100000 data/msmarco-docs-preprocessed.tsv > data/msmarco-docs-bench-100000.tsv"; \
 		exit 1; \
 	fi
 	@if [ ! -f data/msmarco-queries-bench-1000.txt ]; then \

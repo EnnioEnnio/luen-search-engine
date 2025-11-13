@@ -7,11 +7,12 @@ import (
 	"strings"
 
 	"luen-search-engine/internal/index"
+	"luen-search-engine/internal/model"
 	"luen-search-engine/internal/text"
 )
 
-type DocID = string
-type Token = string
+type DocID = model.DocID
+type Token = model.Token
 
 // Match keeps track of how often a token occurred in a document.
 type Match struct {
@@ -65,8 +66,7 @@ func PreprocessQuery(idx index.InvertedIndex, tokenizer text.Tokenizer, query st
 }
 
 func processANDQuery(docLists []map[DocID]Match, isNegated []bool) []Result {
-	results := make([]Result, 0)
-
+	var results []Result
 	for docID, headMatch := range docLists[0] { // iterate over first token's results
 		total := headMatch.Frequency
 		matches := []Match{headMatch}
@@ -312,9 +312,7 @@ func SearchPhrase(idx index.InvertedIndex, tokenizer text.Tokenizer, query strin
 		return nil, 0, fmt.Errorf("phrase queries do not support negation")
 	}
 
-	results := make([]Result, 0)
-
-	results = processPhraseQuery(docLists)
+	results := processPhraseQuery(docLists)
 
 	// sort results by frequency
 	sort.Slice(results, func(i, j int) bool {

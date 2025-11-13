@@ -4,13 +4,15 @@ import (
 	"bufio"
 	"encoding/csv"
 	"errors"
+	"fmt"
 	"io"
 	"os"
+	"strconv"
 )
 
 // Document represents a single record from the MS MARCO dataset.
 type Document struct {
-	ID    string
+	ID    uint32
 	URL   string
 	Title string
 	Text  string
@@ -19,7 +21,7 @@ type Document struct {
 // Dataset keeps the loaded documents together with a direct lookup table.
 type Dataset struct {
 	Documents []Document
-	ByID      map[string]Document
+	ByID      map[uint32]Document
 }
 
 // Load reads up to `limit` rows from a tab-separated file and returns a Dataset.
@@ -41,7 +43,7 @@ func Load(path string, limit int) (*Dataset, error) {
 	reader.LazyQuotes = true
 
 	docs := make([]Document, 0, limit)
-	lookup := make(map[string]Document)
+	lookup := make(map[uint32]Document)
 
 	for {
 		if limit != 0 && len(docs) >= limit {
@@ -67,8 +69,14 @@ func Load(path string, limit int) (*Dataset, error) {
 			}
 		}
 
+		stringID := record[0]
+		value, err := strconv.ParseUint(stringID, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("invalid docID %q: %w", stringID, err)
+		}
+
 		doc := Document{
-			ID:    record[0],
+			ID:    uint32(value),
 			URL:   record[1],
 			Title: record[2],
 			Text:  textField,

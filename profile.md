@@ -5,7 +5,7 @@ This document explains how to collect and inspect CPU, memory, and trace profile
 > **Prerequisites**
 >
 > - `go` 1.25+
-> - `data/msmarco-docs.tsv` as the primary corpus
+> - `data/msmarco-docs.tsv` as the primary corpus but preprocessing is needed as described in the [README](README.md).
 > - Benchmark assets:
 >   - `data/msmarco-docs-bench-100000.tsv` – first 100k rows of the dataset (`head -n 100000 data/msmarco-docs.tsv > data/msmarco-docs-bench-100000.tsv`)
 >   - `data/msmarco-queries-bench-1000.txt` – generated via `scripts/generate-bench-queries.sh`

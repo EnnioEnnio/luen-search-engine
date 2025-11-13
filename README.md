@@ -10,6 +10,8 @@ and provides a CLI search interface across query terms.
 
 - Go 1.25+
 - The `msmarco-docs.tsv` [dataset](https://microsoft.github.io/msmarco/Datasets.html#datasets). Place it anywhere convenient – by default the program looks for `data/msmarco-docs.tsv`.
+
+For Benchmarking:
 - A benchmark subset at `data/msmarco-docs-bench-100000.tsv` (first 100k rows). You can create it with `head -n 100000 data/msmarco-docs.tsv > data/msmarco-docs-bench-100000.tsv`.
 - A deterministic query list at `data/msmarco-queries-bench-1000.txt`, which is added to the repo for convenience and for reproducibility (generated your own via `scripts/generate-bench-queries.sh` requires the benchmark subset).
 
@@ -26,6 +28,11 @@ make bench         # Run performance benchmarks
 make lint          # Run linter
 ```
 
+### Dataset setup
+
+Run `scripts/preprocess_dataset.sh` before indexing to strip the leading `D` from MS MARCO document IDs and write a `-preprocessed` TSV. This makes it cheaper to store IDs as integers. It might take some time (10 minutes on Apple M1 Pro) on the full corpus.
+You need to make the script executable first: `chmod +x scripts/preprocess_dataset.sh`
+
 ### Running with custom parameters
 
 ```bash
@@ -39,7 +46,7 @@ go run . -limit 100000 -mode phrase
 
 ### Command-line flags
 
-- `-data` – Path to the TSV file (default: `data/msmarco-docs.tsv`)
+- `-data` – Path to the TSV file (default: `data/msmarco-docs-preprocess.tsv`)
 - `-limit` – Maximum number of documents to load (default: 1000, set to 0 for all)
 - `-mode` – Search mode (default: "single" for AND/OR search of multiple search terms, "phrase" for phrase search)
 - `-cpuprofile` – Path to write a CPU profile (disabled by default)

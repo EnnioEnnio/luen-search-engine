@@ -12,8 +12,8 @@ func TestLoadReadsDocumentsAndLimit(t *testing.T) {
 	path := filepath.Join(dir, "docs.tsv")
 
 	lines := []string{
-		"doc1\thttps://example.com/1\tFirst Title\tFirst text segment",
-		"doc2\thttps://example.com/2\tSecond Title\tText with\textra\tsegments",
+		"123\thttps://example.com/1\tFirst Title\tFirst text segment",
+		"456\thttps://example.com/2\tSecond Title\tText with\textra\tsegments",
 	}
 
 	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o600); err != nil {
@@ -32,7 +32,7 @@ func TestLoadReadsDocumentsAndLimit(t *testing.T) {
 		t.Fatalf("expected 2 documents, got %d", got)
 	}
 
-	doc2, ok := ds.ByID["doc2"]
+	doc2, ok := ds.ByID[456]
 	if !ok {
 		t.Fatalf("expected doc2 to be present in lookup")
 	}

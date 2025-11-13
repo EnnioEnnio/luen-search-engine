@@ -10,12 +10,12 @@ import (
 func TestBuildCreatesPostingLists(t *testing.T) {
 	docs := []data.Document{
 		{
-			ID:    "docA",
+			ID:    123,
 			Title: "First Document",
 			Text:  "Go search engine search",
 		},
 		{
-			ID:    "docB",
+			ID:    456,
 			Title: "Second Document",
 			Text:  "Search engine basics",
 		},
@@ -35,11 +35,11 @@ func TestBuildCreatesPostingLists(t *testing.T) {
 	if searchPosting.DocFreq != 2 {
 		t.Fatalf("expected doc freq 2 for 'search', got %d", searchPosting.DocFreq)
 	}
-	if got := searchPosting.Docs["docA"]; len(got) != 2 {
-		t.Fatalf("expected docA frequency 2 for 'search', got %d", len(got))
+	if got := searchPosting.Docs[123]; len(got) != 2 {
+		t.Fatalf("expected 123 frequency 2 for 'search', got %d", len(got))
 	}
-	if got := searchPosting.Docs["docB"]; len(got) != 1 {
-		t.Fatalf("expected docB frequency 1 for 'search', got %d", len(got))
+	if got := searchPosting.Docs[456]; len(got) != 1 {
+		t.Fatalf("expected 456 frequency 1 for 'search', got %d", len(got))
 	}
 
 	enginePosting, ok := idx["engine"]
