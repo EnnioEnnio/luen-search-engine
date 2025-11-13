@@ -39,5 +39,5 @@ go.work.sum
 /bin
 
 # Excluding Benchmark files 
-bench_*
+*.pprof
 *.svg
