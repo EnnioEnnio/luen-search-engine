@@ -26,8 +26,10 @@ func Search(idx index.InvertedIndex, tokenizer *text.Tokenizer, query string) (r
 		return nil, 0, err
 	}
 
-	results := make([]Result, 0)
-	results = ast.Eval()
+	results, err := ast.Eval(idx)
+	if err != nil {
+		return nil, 0, err
+	}
 
 	// sort results by frequency
 	sort.Slice(results, func(i, j int) bool {

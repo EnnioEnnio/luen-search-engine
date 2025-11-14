@@ -25,7 +25,6 @@ type token struct {
 	value string
 }
 
-// The Lexer
 type lexer struct {
 	src       string
 	tokenizer *text.Tokenizer
@@ -37,8 +36,6 @@ func newLexer(rawQuery string, tokenizer *text.Tokenizer) *lexer {
 
 // Example: hello and ("world wide" or pain) -> [tTerm tAnd tLParen tLPhrase tTerm tTerm tRPhrase tRParen]
 func (l *lexer) tokens() ([]token, error) {
-	inPhrase := false
-
 	var out []token
 	var builder strings.Builder
 
@@ -68,10 +65,15 @@ func (l *lexer) tokens() ([]token, error) {
 		}
 	}
 
+	// TODO: Add phrase/parentheses validation
+	// No single parentheses, no closing before opening etc.
+	inPhrase := false
+
 	// Iterating over query char by char to detect parentheses etc.
 	for _, r := range l.src {
 		switch r {
 		case '"':
+			flush()
 			if inPhrase {
 				out = append(out, token{typ: tRPhrase, value: "\""})
 				inPhrase = false
@@ -82,19 +84,24 @@ func (l *lexer) tokens() ([]token, error) {
 				continue
 			}
 		case '(':
+			flush()
 			out = append(out, token{typ: tLParen, value: "("})
 			continue
 		case ')':
+			flush()
 			out = append(out, token{typ: tRParen, value: ")"})
 			continue
 		default:
 			if !(unicode.IsLetter(r) || unicode.IsDigit(r)) {
+				// this way we're ignoring anything that is not a-z0-9
 				flush()
 				continue
 			}
 			builder.WriteRune(r)
 		}
 	}
+
+	flush()
 
 	return out, nil
 }
