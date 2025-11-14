@@ -10,17 +10,11 @@ import (
 	"luen-search-engine/internal/text"
 )
 
-func buildIndexForTests(t *testing.T, docs []data.Document) index.InvertedIndex {
-	t.Helper()
-	tokenizer := text.NewTokenizer()
-	return index.Build(docs, tokenizer)
-}
-
 func TestSearchReturnsErrorOnEmptyQuery(t *testing.T) {
 	idx := make(index.InvertedIndex)
 	tokenizer := text.NewTokenizer()
 
-	_, _, err := Search(idx, tokenizer, "", "single")
+	_, _, err := Search(idx, tokenizer, "")
 	if err == nil {
 		t.Fatal("expected error for empty query, got nil")
 	}
@@ -29,17 +23,17 @@ func TestSearchReturnsErrorOnEmptyQuery(t *testing.T) {
 	}
 }
 
-func TestSearchReturnsResultsSortedByScore(t *testing.T) {
+func TestSearchSingleTermRanksByFrequency(t *testing.T) {
 	docs := []data.Document{
 		{ID: 123, Title: "Alpha", Text: "Search engine engine"},
 		{ID: 456, Title: "Beta", Text: "Engine search"},
 		{ID: 789, Title: "Gamma", Text: "Search search engine"},
 	}
 
-	idx := buildIndexForTests(t, docs)
 	tokenizer := text.NewTokenizer()
+	idx := index.Build(docs, tokenizer)
 
-	results, total, err := Search(idx, tokenizer, "search engine", "single")
+	results, total, err := Search(idx, tokenizer, "search engine")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -64,13 +58,13 @@ func TestSearchReturnsResultsSortedByScore(t *testing.T) {
 
 func TestSearchMissingTokenReturnsNil(t *testing.T) {
 	docs := []data.Document{
-		{ID: 123, Title: "Alpha", Text: "Search term"},
+		{ID: 123, Title: "Alpha", Text: "search term"},
 	}
 
-	idx := buildIndexForTests(t, docs)
 	tokenizer := text.NewTokenizer()
+	idx := index.Build(docs, tokenizer)
 
-	results, total, err := Search(idx, tokenizer, "missing token", "")
+	results, total, err := Search(idx, tokenizer, "missing token")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -92,10 +86,10 @@ func TestSearchLimitsToTopTenResults(t *testing.T) {
 		}
 	}
 
-	idx := buildIndexForTests(t, docs)
 	tokenizer := text.NewTokenizer()
+	idx := index.Build(docs, tokenizer)
 
-	results, total, err := Search(idx, tokenizer, "term", "")
+	results, total, err := Search(idx, tokenizer, "term")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -107,17 +101,17 @@ func TestSearchLimitsToTopTenResults(t *testing.T) {
 	}
 }
 
-func TestSearchWithNegatedToken(t *testing.T) {
+func TestSearchWithNotOperator(t *testing.T) {
 	docs := []data.Document{
 		{ID: 123, Title: "Alpha", Text: "cat dog"},
 		{ID: 456, Title: "Beta", Text: "cat bird"},
 		{ID: 789, Title: "Gamma", Text: "cat dog bird"},
 	}
 
-	idx := buildIndexForTests(t, docs)
 	tokenizer := text.NewTokenizer()
+	idx := index.Build(docs, tokenizer)
 
-	results, total, err := Search(idx, tokenizer, "cat -dog", "")
+	results, total, err := Search(idx, tokenizer, "cat and not dog")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -134,64 +128,58 @@ func TestSearchWithNegatedToken(t *testing.T) {
 	}
 }
 
-func TestSearchWithOnlyNegatedTokensReturnsError(t *testing.T) {
+func TestSearchOrPrecedence(t *testing.T) {
 	docs := []data.Document{
-		{ID: 123, Title: "Alpha", Text: "cat dog"},
+		{ID: 1, Title: "Doc1", Text: "cat dog"},
+		{ID: 2, Title: "Doc2", Text: "bird"},
+		{ID: 3, Title: "Doc3", Text: "cat bird"},
+		{ID: 4, Title: "Doc4", Text: "dog"},
 	}
 
-	idx := buildIndexForTests(t, docs)
 	tokenizer := text.NewTokenizer()
+	idx := index.Build(docs, tokenizer)
 
-	_, _, err := Search(idx, tokenizer, "-cat -dog", "")
-	if err == nil {
-		t.Fatal("expected error for query with only negations, got nil")
-	}
-	if !strings.Contains(err.Error(), "query contains only negations") {
-		t.Fatalf("unexpected error message: %v", err)
-	}
-}
-
-func TestSearchWithORAndNegationReturnsError(t *testing.T) {
-	docs := []data.Document{
-		{ID: 123, Title: "Alpha", Text: "cat dog"},
-	}
-
-	idx := buildIndexForTests(t, docs)
-	tokenizer := text.NewTokenizer()
-
-	_, _, err := Search(idx, tokenizer, "cat or -dog", "")
-	if err == nil {
-		t.Fatal("expected error for OR query with negation, got nil")
-	}
-	if !strings.Contains(err.Error(), "combining NOT and OR queries is not allowed") {
-		t.Fatalf("unexpected error message: %v", err)
-	}
-}
-
-func TestSearchWithMultipleNegatedTokens(t *testing.T) {
-	docs := []data.Document{
-		{ID: 123, Title: "Alpha", Text: "cat dog bird"},
-		{ID: 456, Title: "Beta", Text: "cat fish"},
-		{ID: 789, Title: "Gamma", Text: "cat dog"},
-	}
-
-	idx := buildIndexForTests(t, docs)
-	tokenizer := text.NewTokenizer()
-
-	results, total, err := Search(idx, tokenizer, "cat -dog -bird", "")
+	results, total, err := Search(idx, tokenizer, "cat and dog or bird")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
-	if total != 1 {
-		t.Fatalf("expected total results to be 1, got %d", total)
-	}
-	if len(results) != 1 {
-		t.Fatalf("expected 1 result, got %d", len(results))
+	if total != 3 {
+		t.Fatalf("expected 3 total matches, got %d", total)
 	}
 
-	if results[0].DocID != 456 {
-		t.Fatalf("expected 456 (has cat but not dog or bird), got %v", results[0].DocID)
+	want := []uint32{1, 2, 3}
+	if len(results) != len(want) {
+		t.Fatalf("expected %d results, got %d", len(want), len(results))
+	}
+	for i, docID := range want {
+		if results[i].DocID != docID {
+			t.Fatalf("result %d: got docID %d, want %d", i, results[i].DocID, docID)
+		}
+	}
+}
+
+func TestSearchParenthesesOverridePrecedence(t *testing.T) {
+	docs := []data.Document{
+		{ID: 1, Title: "Doc1", Text: "cat bird"},
+		{ID: 2, Title: "Doc2", Text: "dog bird"},
+		{ID: 3, Title: "Doc3", Text: "bird"},
+	}
+
+	tokenizer := text.NewTokenizer()
+	idx := index.Build(docs, tokenizer)
+
+	results, total, err := Search(idx, tokenizer, "(cat or dog) and bird")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if total != 2 {
+		t.Fatalf("expected 2 matches, got %d", total)
+	}
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+	if results[0].DocID != 1 || results[1].DocID != 2 {
+		t.Fatalf("unexpected doc order: %+v", results)
 	}
 }
 
@@ -202,10 +190,10 @@ func TestSearchPhraseQueryMatchesContiguousTokens(t *testing.T) {
 		{ID: 789, Title: "", Text: "quick brown quick brown"},
 	}
 
-	idx := buildIndexForTests(t, docs)
 	tokenizer := text.NewTokenizer()
+	idx := index.Build(docs, tokenizer)
 
-	results, total, err := Search(idx, tokenizer, "quick brown", "phrase")
+	results, total, err := Search(idx, tokenizer, "\"quick brown\"")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -217,11 +205,9 @@ func TestSearchPhraseQueryMatchesContiguousTokens(t *testing.T) {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
 
-	// 789 should come first because it contains the phrase twice
 	if results[0].DocID != 789 || results[0].TotalTermFrequency != 2 {
 		t.Fatalf("unexpected first result: %+v", results[0])
 	}
-	// check positions for 789: quick at positions 0 and 2, brown at 1 and 3
 	if len(results[0].Matches) < 2 {
 		t.Fatalf("expected at least 2 token matches in 789, got %v", results[0].Matches)
 	}
@@ -234,8 +220,24 @@ func TestSearchPhraseQueryMatchesContiguousTokens(t *testing.T) {
 		t.Fatalf("unexpected second match for 789: %+v", sec)
 	}
 
-	// 123 should be the second result with a single occurrence
 	if results[1].DocID != 123 || results[1].TotalTermFrequency != 1 {
 		t.Fatalf("unexpected second result: %+v", results[1])
+	}
+}
+
+func TestSearchOnlyNegationsReturnError(t *testing.T) {
+	docs := []data.Document{
+		{ID: 1, Title: "Doc1", Text: "cat"},
+	}
+
+	tokenizer := text.NewTokenizer()
+	idx := index.Build(docs, tokenizer)
+
+	_, _, err := Search(idx, tokenizer, "not cat")
+	if err == nil {
+		t.Fatal("expected error for negation-only query, got nil")
+	}
+	if !strings.Contains(err.Error(), "NOT expressions must be combined with a positive search term") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

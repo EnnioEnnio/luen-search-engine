@@ -20,13 +20,32 @@ import (
 	"luen-search-engine/internal/text"
 )
 
+// Profiler memory dump
+func writeMemProfile(path string) {
+	if path == "" {
+		return
+	}
+
+	f, err := os.Create(path)
+	if err != nil {
+		log.Printf("could not create memory profile: %v", err)
+		return
+	}
+	defer f.Close()
+
+	runtime.GC()
+	if err := pprof.WriteHeapProfile(f); err != nil {
+		log.Printf("could not write memory profile: %v", err)
+	}
+}
+
 func main() {
+
+	// Argparse and profiler setup
 	dataPath := flag.String("data", "data/msmarco-docs-preprocessed.tsv", "Path to the MS MARCO TSV file")
 	limit := flag.Int("limit", 1000, "Maximum number of documents to load (0 means all)")
-	mode := flag.String("mode", "single", "Choose query mode between single and phrase (for phrase queries). Default is single mode.")
 	cpuprofile := flag.String("cpuprofile", "", "Write CPU profile to file")
 	memprofile := flag.String("memprofile", "", "Write memory profile to file")
-
 	flag.Parse()
 
 	if *cpuprofile != "" {
@@ -48,11 +67,7 @@ func main() {
 		defer writeMemProfile(*memprofile)
 	}
 
-	if *mode != "single" && *mode != "phrase" {
-		log.Fatalf("invalid mode: %s", *mode)
-	}
-	fmt.Printf("Using mode: %s\n", *mode)
-
+	// Search engine setup
 	tokenizer := text.NewTokenizer()
 
 	loadStart := time.Now()
@@ -69,6 +84,7 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("Your Search Engine is ready! Type a search term to use it, >exit to quit")
 
+	// Search loop
 	for {
 		fmt.Print("\nSearch: ")
 		entry, err := reader.ReadString('\n')
@@ -91,7 +107,7 @@ func main() {
 		}
 
 		searchStart := time.Now()
-		results, total, err := search.Search(inverted, tokenizer, searchTerm, *mode)
+		results, total, err := search.Search(inverted, tokenizer, searchTerm)
 		searchTime := time.Since(searchStart)
 		if err != nil {
 			fmt.Printf("Error while searching: %v\n", err)
@@ -99,23 +115,5 @@ func main() {
 		}
 
 		output.PrintResults(results, dataset, total, searchTime)
-	}
-}
-
-func writeMemProfile(path string) {
-	if path == "" {
-		return
-	}
-
-	f, err := os.Create(path)
-	if err != nil {
-		log.Printf("could not create memory profile: %v", err)
-		return
-	}
-	defer f.Close()
-
-	runtime.GC()
-	if err := pprof.WriteHeapProfile(f); err != nil {
-		log.Printf("could not write memory profile: %v", err)
 	}
 }

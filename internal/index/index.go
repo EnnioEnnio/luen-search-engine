@@ -20,12 +20,12 @@ type PostingList struct {
 type InvertedIndex map[Token]*PostingList
 
 // Build constructs an inverted index for the provided documents.
-func Build(docs []data.Document, tokenizer text.Tokenizer) InvertedIndex {
+func Build(docs []data.Document, tokenizer *text.Tokenizer) InvertedIndex {
 	idx := make(InvertedIndex)
 
 	for _, doc := range docs {
-		tokens, _ := tokenizer.Tokenize(doc.Title)
-		tokensBody, _ := tokenizer.Tokenize(doc.Text)
+		tokens := tokenizer.Tokenize(doc.Title)
+		tokensBody := tokenizer.Tokenize(doc.Text)
 		tokens = append(tokens, tokensBody...)
 
 		for i, token := range tokens {
