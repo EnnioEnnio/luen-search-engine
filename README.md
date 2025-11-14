@@ -48,11 +48,8 @@ go run . -limit 100000 -mode phrase
 
 - `-data` – Path to the TSV file (default: `data/msmarco-docs-preprocess.tsv`)
 - `-limit` – Maximum number of documents to load (default: 1000, set to 0 for all)
-- `-mode` – Search mode (default: "single" for AND/OR search of multiple search terms, "phrase" for phrase search)
 - `-cpuprofile` – Path to write a CPU profile (disabled by default)
 - `-memprofile` – Path to write a heap profile (disabled by default)
-
-> Note: The -mode flag is to be discontinued in future versions. Phrase search will be included via a query parser.
 
 ### Search interface
 
