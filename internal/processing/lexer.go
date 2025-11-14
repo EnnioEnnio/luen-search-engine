@@ -34,7 +34,7 @@ func newLexer(rawQuery string, tokenizer *text.Tokenizer) *lexer {
 	return &lexer{src: rawQuery, tokenizer: tokenizer}
 }
 
-// Example: hello and ("world wide" or pain) -> [tTerm tAnd tLParen tLPhrase tTerm tTerm tRPhrase tRParen]
+// Example: hello and ("world wide" or pain) -> [tTerm tAnd tLParen tLPhrase tTerm tTerm tRPhrase tOr tTerm tRParen]
 func (l *lexer) tokens() ([]token, error) {
 	var out []token
 	var builder strings.Builder
@@ -58,10 +58,8 @@ func (l *lexer) tokens() ([]token, error) {
 			tokenized := l.tokenizer.TokenizeTerm(value)
 			if tokenized == "" {
 				return
-			} else {
-				out = append(out, token{typ: tTerm, value: tokenized})
 			}
-
+			out = append(out, token{typ: tTerm, value: tokenized})
 		}
 	}
 
@@ -78,11 +76,10 @@ func (l *lexer) tokens() ([]token, error) {
 				out = append(out, token{typ: tRPhrase, value: "\""})
 				inPhrase = false
 				continue
-			} else {
-				out = append(out, token{typ: tLPhrase, value: "\""})
-				inPhrase = true
-				continue
 			}
+			out = append(out, token{typ: tLPhrase, value: "\""})
+			inPhrase = true
+			continue
 		case '(':
 			flush()
 			out = append(out, token{typ: tLParen, value: "("})

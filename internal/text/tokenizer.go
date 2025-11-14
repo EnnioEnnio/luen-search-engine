@@ -27,8 +27,8 @@ func NewTokenizer() *Tokenizer {
 }
 
 // Tokenize returns normalized tokens extracted from the provided string.
-func (t Tokenizer) Tokenize(value string) []string {
-	if value == "" {
+func (t *Tokenizer) Tokenize(value string) []string {
+	if t == nil || value == "" {
 		return nil
 	}
 
@@ -66,13 +66,12 @@ func (t Tokenizer) Tokenize(value string) []string {
 }
 
 // Convenience wrapper around Tokenize() for single terms (used in query tokenization)
-func (t Tokenizer) TokenizeTerm(value string) string {
+func (t *Tokenizer) TokenizeTerm(value string) string {
 	tokenized := t.Tokenize(value)
 
 	if len(tokenized) == 0 {
 		return ""
-	} else {
-		return tokenized[0]
 	}
 
+	return tokenized[0]
 }
