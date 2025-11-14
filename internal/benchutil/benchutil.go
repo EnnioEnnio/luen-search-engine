@@ -161,6 +161,19 @@ func generateQueries(docs []data.Document, tokenizer *text.Tokenizer, count int)
 	queries := make([]string, 0, count)
 	rng := rand.New(rand.NewSource(42))
 
+	patterns := []func(*rand.Rand, []string) (string, bool){
+		singleTermQuery,
+		andQuery,
+		orChainQuery,
+		notGroupQuery,
+		notGroupOrTermQuery,
+		phraseOnlyQuery,
+		phraseWithTermsQuery,
+		mixedPhraseQuery,
+		groupedPhraseQuery,
+		longMixedQuery,
+	}
+
 	for len(queries) < count {
 		doc := docs[rng.Intn(len(docs))]
 		tokens := tokenizer.Tokenize(doc.Text)
@@ -168,38 +181,175 @@ func generateQueries(docs []data.Document, tokenizer *text.Tokenizer, count int)
 			continue
 		}
 
-		maxLen := maxQueryTerms
-		if len(tokens) < maxLen {
-			maxLen = len(tokens)
+		pattern := patterns[rng.Intn(len(patterns))]
+		if query, ok := pattern(rng, tokens); ok {
+			queries = append(queries, query)
 		}
-		length := rng.Intn(maxLen-minQueryTerms+1) + minQueryTerms
-		if length > len(tokens) {
-			length = len(tokens)
-		}
-
-		startMax := len(tokens) - length
-		start := 0
-		if startMax > 0 {
-			start = rng.Intn(startMax + 1)
-		}
-		chunk := tokens[start : start+length]
-
-		var builder strings.Builder
-		builder.Grow(length * 10)
-		builder.WriteString(chunk[0])
-
-		includeOR := length > 1 && rng.Intn(5) == 0
-		for i := 1; i < len(chunk); i++ {
-			if includeOR && i == 1 {
-				builder.WriteString(" or ")
-			} else {
-				builder.WriteByte(' ')
-			}
-			builder.WriteString(chunk[i])
-		}
-
-		queries = append(queries, builder.String())
 	}
 
 	return queries
+}
+
+func singleTermQuery(rng *rand.Rand, tokens []string) (string, bool) {
+	terms, ok := randomUniqueTerms(rng, tokens, 1)
+	if !ok {
+		return "", false
+	}
+	return terms[0], true
+}
+
+func andQuery(rng *rand.Rand, tokens []string) (string, bool) {
+	terms, ok := randomUniqueTerms(rng, tokens, 2)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("%s and %s", terms[0], terms[1]), true
+}
+
+func orChainQuery(rng *rand.Rand, tokens []string) (string, bool) {
+	length := 2 + rng.Intn(2) // 2-3 terms
+	terms, ok := randomUniqueTerms(rng, tokens, length)
+	if !ok {
+		return "", false
+	}
+	return strings.Join(terms, " or "), true
+}
+
+func notGroupQuery(rng *rand.Rand, tokens []string) (string, bool) {
+	terms, ok := randomUniqueTerms(rng, tokens, 2)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("(%s and not %s)", terms[0], terms[1]), true
+}
+
+func notGroupOrTermQuery(rng *rand.Rand, tokens []string) (string, bool) {
+	terms, ok := randomUniqueTerms(rng, tokens, 3)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("(%s and not %s) or %s", terms[0], terms[1], terms[2]), true
+}
+
+func phraseOnlyQuery(rng *rand.Rand, tokens []string) (string, bool) {
+	phrase, ok := randomPhrase(rng, tokens, 5)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("\"%s\"", phrase), true
+}
+
+func phraseWithTermsQuery(rng *rand.Rand, tokens []string) (string, bool) {
+	phrase, ok := randomPhrase(rng, tokens, 5)
+	if !ok {
+		return "", false
+	}
+	terms, ok := randomUniqueTerms(rng, tokens, 2)
+	if !ok {
+		return "", false
+	}
+
+	if rng.Intn(2) == 0 {
+		return fmt.Sprintf("\"%s\" and %s", phrase, terms[0]), true
+	}
+	return fmt.Sprintf("%s and \"%s\" and %s", terms[0], phrase, terms[1]), true
+}
+
+func mixedPhraseQuery(rng *rand.Rand, tokens []string) (string, bool) {
+	phrase, ok := randomPhrase(rng, tokens, 4)
+	if !ok {
+		return "", false
+	}
+	terms, ok := randomUniqueTerms(rng, tokens, 2)
+	if !ok {
+		return "", false
+	}
+
+	return fmt.Sprintf("%s and \"%s\" or %s", terms[0], phrase, terms[1]), true
+}
+
+func groupedPhraseQuery(rng *rand.Rand, tokens []string) (string, bool) {
+	phrase, ok := randomPhrase(rng, tokens, 4)
+	if !ok {
+		return "", false
+	}
+	terms, ok := randomUniqueTerms(rng, tokens, 2)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("%s and (%s or \"%s\")", terms[0], terms[1], phrase), true
+}
+
+func longMixedQuery(rng *rand.Rand, tokens []string) (string, bool) {
+	terms, ok := randomUniqueTerms(rng, tokens, 4)
+	if !ok {
+		return "", false
+	}
+	phrase, ok := randomPhrase(rng, tokens, 6)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("%s and %s or (%s and not %s) and \"%s\"", terms[0], terms[1], terms[2], terms[3], phrase), true
+}
+
+func randomUniqueTerms(rng *rand.Rand, tokens []string, count int) ([]string, bool) {
+	if len(tokens) < count {
+		return nil, false
+	}
+
+	unique := make([]string, 0, len(tokens))
+	seen := make(map[string]struct{}, len(tokens))
+	for _, token := range tokens {
+		if token == "" {
+			continue
+		}
+		if _, ok := seen[token]; ok {
+			continue
+		}
+		seen[token] = struct{}{}
+		unique = append(unique, token)
+	}
+
+	if len(unique) < count {
+		return nil, false
+	}
+
+	rng.Shuffle(len(unique), func(i, j int) {
+		unique[i], unique[j] = unique[j], unique[i]
+	})
+
+	return unique[:count], true
+}
+
+func randomPhrase(rng *rand.Rand, tokens []string, maxWords int) (string, bool) {
+	if len(tokens) < 2 {
+		return "", false
+	}
+	if maxWords < 2 {
+		maxWords = 2
+	}
+	if maxWords > len(tokens) {
+		maxWords = len(tokens)
+	}
+
+	length := 2
+	if maxWords > 2 {
+		length += rng.Intn(maxWords - 1)
+	}
+
+	if length > len(tokens) {
+		length = len(tokens)
+	}
+
+	startMax := len(tokens) - length
+	start := 0
+	if startMax > 0 {
+		start = rng.Intn(startMax + 1)
+	}
+
+	phrase := strings.TrimSpace(strings.Join(tokens[start:start+length], " "))
+	if phrase == "" {
+		return "", false
+	}
+	return phrase, true
 }

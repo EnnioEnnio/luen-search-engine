@@ -37,6 +37,7 @@ go.work.sum
 /data/msmarco-docs-bench-100000.tsv
 /data/msmarco-docs-preprocessed.tsv
 /bin
+.cache
 
 # Excluding Benchmark files 
 *.pprof
