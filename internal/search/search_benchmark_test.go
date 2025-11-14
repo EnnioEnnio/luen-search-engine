@@ -22,7 +22,7 @@ func BenchmarkSearchWorkload(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		for _, query := range queries {
-			if _, _, err := Search(idx, tokenizer, query, "single"); err != nil {
+			if _, _, err := Search(idx, tokenizer, query); err != nil {
 				b.Fatalf("search query %q returned error: %v", query, err)
 			}
 		}
