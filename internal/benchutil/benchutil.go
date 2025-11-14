@@ -55,7 +55,7 @@ func LoadDataset(tb testing.TB) *data.Dataset {
 }
 
 // BuildQueries builds a deterministic query slice without relying on testing helpers.
-func BuildQueries(docs []data.Document, tokenizer text.Tokenizer, count int) ([]string, error) {
+func BuildQueries(docs []data.Document, tokenizer *text.Tokenizer, count int) ([]string, error) {
 	if len(docs) == 0 {
 		return nil, fmt.Errorf("cannot generate queries without documents")
 	}
@@ -66,7 +66,7 @@ func BuildQueries(docs []data.Document, tokenizer text.Tokenizer, count int) ([]
 }
 
 // GenerateQueries is a testing helper wrapper around BuildQueries.
-func GenerateQueries(tb testing.TB, docs []data.Document, tokenizer text.Tokenizer, count int) []string {
+func GenerateQueries(tb testing.TB, docs []data.Document, tokenizer *text.Tokenizer, count int) []string {
 	tb.Helper()
 	queries, err := BuildQueries(docs, tokenizer, count)
 	if err != nil {
@@ -157,13 +157,13 @@ func findRepoRoot() (string, error) {
 	}
 }
 
-func generateQueries(docs []data.Document, tokenizer text.Tokenizer, count int) []string {
+func generateQueries(docs []data.Document, tokenizer *text.Tokenizer, count int) []string {
 	queries := make([]string, 0, count)
 	rng := rand.New(rand.NewSource(42))
 
 	for len(queries) < count {
 		doc := docs[rng.Intn(len(docs))]
-		tokens, _ := tokenizer.Tokenize(doc.Text)
+		tokens := tokenizer.Tokenize(doc.Text)
 		if len(tokens) == 0 {
 			continue
 		}
@@ -183,18 +183,6 @@ func generateQueries(docs []data.Document, tokenizer text.Tokenizer, count int) 
 			start = rng.Intn(startMax + 1)
 		}
 		chunk := tokens[start : start+length]
-
-		// skip negated-only chunks for deterministic OR handling
-		skipChunk := false
-		for _, tok := range chunk {
-			if strings.HasPrefix(tok, "-") {
-				skipChunk = true
-				break
-			}
-		}
-		if skipChunk {
-			continue
-		}
 
 		var builder strings.Builder
 		builder.Grow(length * 10)
