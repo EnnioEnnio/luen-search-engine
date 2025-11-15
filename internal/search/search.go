@@ -1,12 +1,14 @@
 package search
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
 	"luen-search-engine/internal/index"
 	"luen-search-engine/internal/model"
 	"luen-search-engine/internal/processing"
+	"luen-search-engine/internal/synonyms"
 	"luen-search-engine/internal/text"
 )
 
@@ -16,12 +18,16 @@ type Match = model.Match
 type Result = model.Result
 
 // Search finds documents that contain all query tokens and orders them by frequency.
-func Search(idx index.InvertedIndex, tokenizer *text.Tokenizer, query string) (res []Result, count int, e error) {
+func Search(ctx context.Context, idx index.InvertedIndex, tokenizer *text.Tokenizer, expander *synonyms.SpladeLike, query string) (res []Result, count int, e error) {
 	if query == "" {
 		return nil, 0, fmt.Errorf("query must not be empty")
 	}
 
 	ast, err := processing.Parse(query, tokenizer)
+	if err != nil {
+		return nil, 0, err
+	}
+	ast, err = expander.ExpandAST(ctx, ast)
 	if err != nil {
 		return nil, 0, err
 	}
