@@ -43,7 +43,7 @@ func Load(path string, limit int) (*Dataset, error) {
 	reader.LazyQuotes = true
 
 	docs := make([]Document, 0, limit)
-	lookup := make(map[uint32]Document)
+	lookup := make(map[uint32]Document, limit)
 
 	for {
 		if limit != 0 && len(docs) >= limit {

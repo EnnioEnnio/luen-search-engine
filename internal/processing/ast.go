@@ -71,7 +71,7 @@ func (n *TermNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 	for docID, positions := range posting.Docs {
 		match := Match{
 			Token:     n.Token,
-			Frequency: len(positions),
+			Frequency: uint32(len(positions)),
 			Positions: positions,
 		}
 		results = append(results, Result{
@@ -101,7 +101,7 @@ func (n *PhraseNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 		for docID, positions := range posting.Docs {
 			docs[docID] = Match{
 				Token:     token,
-				Frequency: len(positions),
+				Frequency: uint32(len(positions)),
 				Positions: positions,
 			}
 		}
@@ -109,6 +109,7 @@ func (n *PhraseNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 	}
 
 	results := make([]Result, 0)
+  
 	currentDocList := docLists[0]
 	for i := 0; i < len(docLists)-1; i++ {
 		currentDocList = n.checkPhrasePairs(currentDocList, docLists[i+1])
