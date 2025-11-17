@@ -212,11 +212,11 @@ func TestSearchPhraseQueryMatchesContiguousTokens(t *testing.T) {
 		t.Fatalf("expected at least 2 token matches in 789, got %v", results[0].Matches)
 	}
 	head := results[0].Matches[0]
-	if head.Token != "quick" || head.Frequency != 2 || !slices.Equal(head.Positions, []int{0, 2}) {
+	if head.Token != "quick" || head.Frequency != 2 || !slices.Equal(head.Positions, []uint32{0, 2}) {
 		t.Fatalf("unexpected head match for 789: %+v", head)
 	}
 	sec := results[0].Matches[1]
-	if sec.Token != "brown" || sec.Frequency != 2 || !slices.Equal(sec.Positions, []int{1, 3}) {
+	if sec.Token != "brown" || sec.Frequency != 2 || !slices.Equal(sec.Positions, []uint32{1, 3}) {
 		t.Fatalf("unexpected second match for 789: %+v", sec)
 	}
 

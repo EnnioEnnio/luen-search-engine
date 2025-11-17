@@ -71,7 +71,7 @@ func (n *TermNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 	for docID, positions := range posting.Docs {
 		match := Match{
 			Token:     n.Token,
-			Frequency: len(positions),
+			Frequency: uint32(len(positions)),
 			Positions: positions,
 		}
 		results = append(results, Result{
@@ -102,7 +102,7 @@ func (n *PhraseNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 		for docID, positions := range posting.Docs {
 			docs[docID] = Match{
 				Token:     token,
-				Frequency: len(positions),
+				Frequency: uint32(len(positions)),
 				Positions: positions,
 			}
 		}
@@ -113,7 +113,7 @@ func (n *PhraseNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 	tokenCount := len(docLists)
 
 	for docID := range docLists[0] {
-		positions := make([][]int, tokenCount)
+		positions := make([][]uint32, tokenCount)
 		tokens := make([]Token, tokenCount)
 		missing := false
 
@@ -132,27 +132,27 @@ func (n *PhraseNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 
 		outMatches := make([]Match, tokenCount)
 		for ti := 0; ti < tokenCount; ti++ {
-			outMatches[ti] = Match{Token: tokens[ti], Positions: make([]int, 0)}
+			outMatches[ti] = Match{Token: tokens[ti], Positions: make([]uint32, 0)}
 		}
 
-		idxs := make([]int, tokenCount)
+		idxs := make([]uint32, tokenCount)
 
 	OUTER:
 		for {
 			for ti := 0; ti < tokenCount; ti++ {
-				if idxs[ti] >= len(positions[ti]) {
+				if idxs[ti] >= uint32(len(positions[ti])) {
 					break OUTER
 				}
 			}
 
-			currentPositions := make([]int, tokenCount)
+			currentPositions := make([]uint32, tokenCount)
 			for ti := 0; ti < tokenCount; ti++ {
 				currentPositions[ti] = positions[ti][idxs[ti]]
 			}
 
 			ok := true
 			for ti := 1; ti < tokenCount; ti++ {
-				if currentPositions[ti] != currentPositions[0]+ti {
+				if currentPositions[ti] != currentPositions[0]+uint32(ti) {
 					ok = false
 					break
 				}
@@ -183,9 +183,9 @@ func (n *PhraseNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 			continue
 		}
 
-		total := len(outMatches[0].Positions)
+		total := uint32(len(outMatches[0].Positions))
 		for ti := 0; ti < tokenCount; ti++ {
-			outMatches[ti].Frequency = len(outMatches[ti].Positions)
+			outMatches[ti].Frequency = uint32(len(outMatches[ti].Positions))
 		}
 
 		results = append(results, Result{

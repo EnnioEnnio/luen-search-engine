@@ -9,13 +9,13 @@ type Token = string
 // Match keeps track of how often a token occurred in a document.
 type Match struct {
 	Token     Token
-	Frequency int
-	Positions []int
+	Frequency uint32
+	Positions []uint32
 }
 
 // Result represents the aggregated scores for a matching document.
 type Result struct {
 	DocID              DocID
-	TotalTermFrequency int // used for ranking only
+	TotalTermFrequency uint32 // used for ranking only
 	Matches            []Match
 }
