@@ -38,10 +38,10 @@ You need to make the script executable first: `chmod +x scripts/preprocess_datas
 ```bash
 # Build and run
 make build
-./bin/luen -limit 100000 -mode single
+./bin/luen -limit 100000
 
 # Or use go run directly
-go run . -limit 100000 -mode phrase
+go run . -limit 100000
 ```
 
 ### Command-line flags
