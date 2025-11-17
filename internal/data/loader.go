@@ -10,6 +10,8 @@ import (
 	"strconv"
 )
 
+var ErrIncompleteRecord = errors.New("incomplete record")
+
 // Document represents a single record from the MS MARCO dataset.
 type Document struct {
 	ID    uint32
@@ -57,29 +59,13 @@ func Load(path string, limit int) (*Dataset, error) {
 		if err != nil {
 			return nil, err
 		}
-		if len(record) < 4 {
-			continue
-		}
 
-		textField := record[3]
-		if len(record) > 4 {
-			// When additional tab characters appear in the text, join them back together.
-			for i := 4; i < len(record); i++ {
-				textField += "\t" + record[i]
-			}
-		}
-
-		stringID := record[0]
-		value, err := strconv.ParseUint(stringID, 10, 32)
+		doc, err := parseRecord(record)
 		if err != nil {
-			return nil, fmt.Errorf("invalid docID %q: %w", stringID, err)
-		}
-
-		doc := Document{
-			ID:    uint32(value),
-			URL:   record[1],
-			Title: record[2],
-			Text:  textField,
+			if errors.Is(err, ErrIncompleteRecord) {
+				continue
+			}
+			return nil, err
 		}
 
 		docs = append(docs, doc)
@@ -98,4 +84,30 @@ func (d *Dataset) Size() int {
 		return 0
 	}
 	return len(d.Documents)
+}
+
+func parseRecord(record []string) (Document, error) {
+	if len(record) < 4 {
+		return Document{}, ErrIncompleteRecord
+	}
+
+	textField := record[3]
+	if len(record) > 4 {
+		for i := 4; i < len(record); i++ {
+			textField += "\t" + record[i]
+		}
+	}
+
+	stringID := record[0]
+	value, err := strconv.ParseUint(stringID, 10, 32)
+	if err != nil {
+		return Document{}, fmt.Errorf("invalid docID %q: %w", stringID, err)
+	}
+
+	return Document{
+		ID:    uint32(value),
+		URL:   record[1],
+		Title: record[2],
+		Text:  textField,
+	}, nil
 }
