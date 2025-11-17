@@ -111,21 +111,21 @@ func (n *PhraseNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 	results := make([]Result, 0)
 	currentDocList := docLists[0]
 	for i := 0; i < len(docLists)-1; i++ {
-		currentDocList = checkPhrasePairs(currentDocList, docLists[i+1])
+		currentDocList = n.checkPhrasePairs(currentDocList, docLists[i+1])
 	}
 	if len(currentDocList) == 0 {
 		return results, nil
 	}
 
 	phraseLength := len(docLists)
-	for docId, lastMatch := range currentDocList {
+	for docID, lastMatch := range currentDocList {
 		phraseEndPositions := lastMatch.Positions
 		if len(phraseEndPositions) == 0 {
 			continue
 		}
 		matches := make([]Match, phraseLength)
 		for i := 0; i < phraseLength; i++ {
-			oldMatch, ok := docLists[i][docId]
+			oldMatch, ok := docLists[i][docID]
 			if !ok {
 				continue // actually this can not happen, just to be sure
 			}
@@ -142,7 +142,7 @@ func (n *PhraseNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 		}
 
 		results = append(results, Result{
-			DocID:              docId,
+			DocID:              docID,
 			TotalTermFrequency: lastMatch.Frequency,
 			Matches:            matches,
 		})
@@ -315,7 +315,7 @@ func mapToSlice(m map[DocID]Result) []Result {
 	return out
 }
 
-func checkPhrasePairs(docList1, docList2 map[DocID]Match) map[DocID]Match {
+func (n *PhraseNode) checkPhrasePairs(docList1, docList2 map[DocID]Match) map[DocID]Match {
 	merged := make(map[DocID]Match)
 	for docID, matches1 := range docList1 {
 		matches2, ok := docList2[docID]
