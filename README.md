@@ -9,7 +9,7 @@ and provides a CLI search interface across query terms.
 ## Prerequisites
 
 - Go 1.25+
-- The `msmarco-docs.tsv` [dataset](https://microsoft.github.io/msmarco/Datasets.html#datasets). Place it anywhere convenient – by default the program looks for `data/msmarco-docs.tsv`.
+- The `msmarco-docs.tsv` [dataset](https://microsoft.github.io/msmarco/Datasets.html#datasets). Place it anywhere convenient – by default the program looks for `data/msmarco-docs-preprocessed.tsv`.
 
 For Benchmarking:
 - A benchmark subset at `data/msmarco-docs-bench-100000.tsv` (first 100k rows). You can create it with `head -n 100000 data/msmarco-docs.tsv > data/msmarco-docs-bench-100000.tsv`.
@@ -38,15 +38,15 @@ You need to make the script executable first: `chmod +x scripts/preprocess_datas
 ```bash
 # Build and run
 make build
-./bin/luen -limit 100000 -mode single
+./bin/luen -limit 100000
 
 # Or use go run directly
-go run . -limit 100000 -mode phrase
+go run . -limit 100000
 ```
 
 ### Command-line flags
 
-- `-data` – Path to the TSV file (default: `data/msmarco-docs-preprocess.tsv`)
+- `-data` – Path to the TSV file (default: `data/msmarco-docs-preprocessed.tsv`)
 - `-limit` – Maximum number of documents to load (default: 1000, set to 0 for all)
 - `-buildindex` – Build the SPIMI-based on-disk index and exit (default: false)
 - `-disk` – Serve queries straight from the persisted index (default: false)

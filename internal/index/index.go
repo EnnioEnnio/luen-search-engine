@@ -21,7 +21,8 @@ type InvertedIndex map[Token]*PostingList
 
 // Build constructs an inverted index for the provided documents.
 func Build(docs []data.Document, tokenizer *text.Tokenizer) InvertedIndex {
-	idx := make(InvertedIndex)
+	const approxVocab = 100_000 // 1000 documents have roughly around 70.000 unique token according to `make dev`
+	idx := make(InvertedIndex, approxVocab)
 
 	for _, doc := range docs {
 		tokens := tokenizer.Tokenize(doc.Title)
@@ -32,7 +33,7 @@ func Build(docs []data.Document, tokenizer *text.Tokenizer) InvertedIndex {
 			posting, ok := idx[token]
 			if !ok {
 				posting = &PostingList{
-					Docs: make(map[DocID][]Position),
+					Docs: make(map[DocID][]Position, 1),
 				}
 				idx[token] = posting
 			}
