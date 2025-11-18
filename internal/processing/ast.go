@@ -26,7 +26,7 @@ const (
 // Node represents a query AST element that can evaluate itself against the index.
 type Node interface {
 	Type() NodeType
-	Eval(idx index.InvertedIndex) ([]Result, error)
+	Eval(src index.PostingSource) ([]Result, error)
 }
 
 // TermNode matches a single normalized token.
@@ -56,14 +56,16 @@ type NotNode struct {
 
 func (n *TermNode) Type() NodeType { return tTermNode }
 
-// Eval returns postings for the term directly from the inverted index.
-func (n *TermNode) Eval(idx index.InvertedIndex) ([]Result, error) {
+// Eval returns postings for the term via the provided posting source.
+func (n *TermNode) Eval(src index.PostingSource) ([]Result, error) {
 	if n == nil || n.Token == "" {
 		return nil, nil
 	}
-
-	posting, ok := idx[n.Token]
-	if !ok || posting == nil {
+	posting, err := src.Lookup(n.Token)
+	if err != nil {
+		return nil, err
+	}
+	if posting == nil {
 		return nil, nil
 	}
 
@@ -86,15 +88,18 @@ func (n *TermNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 func (n *PhraseNode) Type() NodeType { return tPhraseNode }
 
 // Eval performs a positional merge to find contiguous matches for the phrase.
-func (n *PhraseNode) Eval(idx index.InvertedIndex) ([]Result, error) {
+func (n *PhraseNode) Eval(src index.PostingSource) ([]Result, error) {
 	if len(n.Tokens) == 0 {
 		return nil, nil
 	}
 
 	docLists := make([]map[DocID]Match, len(n.Tokens))
 	for ti, token := range n.Tokens {
-		posting, ok := idx[token]
-		if !ok || posting == nil {
+		posting, err := src.Lookup(token)
+		if err != nil {
+			return nil, err
+		}
+		if posting == nil {
 			return nil, nil
 		}
 
@@ -201,7 +206,7 @@ func (n *PhraseNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 func (a *AndNode) Type() NodeType { return tAndNode }
 
 // Eval intersects child results and subtracts explicit negations.
-func (a *AndNode) Eval(idx index.InvertedIndex) ([]Result, error) {
+func (a *AndNode) Eval(src index.PostingSource) ([]Result, error) {
 	if len(a.Children) == 0 {
 		return nil, nil
 	}
@@ -213,7 +218,7 @@ func (a *AndNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 	for _, child := range a.Children {
 		switch node := child.(type) {
 		case *NotNode:
-			neg, err := node.evalNegated(idx)
+			neg, err := node.evalNegated(src)
 			if err != nil {
 				return nil, err
 			}
@@ -221,7 +226,7 @@ func (a *AndNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 				exclude[r.DocID] = struct{}{}
 			}
 		default:
-			res, err := child.Eval(idx)
+			res, err := child.Eval(src)
 			if err != nil {
 				return nil, err
 			}
@@ -259,7 +264,7 @@ func (a *AndNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 func (o *OrNode) Type() NodeType { return tOrNode }
 
 // Eval unions child results, summing frequencies per document.
-func (o *OrNode) Eval(idx index.InvertedIndex) ([]Result, error) {
+func (o *OrNode) Eval(src index.PostingSource) ([]Result, error) {
 	if len(o.Children) == 0 {
 		return nil, nil
 	}
@@ -267,7 +272,7 @@ func (o *OrNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 	aggregate := make(map[DocID]Result)
 
 	for _, child := range o.Children {
-		res, err := child.Eval(idx)
+		res, err := child.Eval(src)
 		if err != nil {
 			return nil, err
 		}
@@ -298,16 +303,16 @@ func (o *OrNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 func (n *NotNode) Type() NodeType { return tNotNode }
 
 // Eval always errors—NOT must be combined with a positive operand via AndNode.
-func (n *NotNode) Eval(idx index.InvertedIndex) ([]Result, error) {
+func (n *NotNode) Eval(src index.PostingSource) ([]Result, error) {
 	return nil, fmt.Errorf("NOT expressions must be combined with a positive search term")
 }
 
 // evalNegated returns the child results for exclusion handling.
-func (n *NotNode) evalNegated(idx index.InvertedIndex) ([]Result, error) {
+func (n *NotNode) evalNegated(src index.PostingSource) ([]Result, error) {
 	if n == nil || n.Child == nil {
 		return nil, fmt.Errorf("negation is missing an operand")
 	}
-	return n.Child.Eval(idx)
+	return n.Child.Eval(src)
 }
 
 // resultsToMap converts a slice of results into a docID keyed map.

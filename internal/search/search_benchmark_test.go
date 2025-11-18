@@ -5,6 +5,7 @@ import (
 
 	"luen-search-engine/internal/benchutil"
 	"luen-search-engine/internal/index"
+	"luen-search-engine/internal/processing"
 	"luen-search-engine/internal/text"
 )
 
@@ -20,9 +21,10 @@ func BenchmarkSearchWorkload(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	source := processing.NewMemorySource(idx)
 	for i := 0; i < b.N; i++ {
 		for _, query := range queries {
-			if _, _, err := Search(idx, tokenizer, query); err != nil {
+			if _, _, err := Search(source, tokenizer, query); err != nil {
 				b.Fatalf("search query %q returned error: %v", query, err)
 			}
 		}

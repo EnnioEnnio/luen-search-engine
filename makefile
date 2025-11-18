@@ -20,11 +20,14 @@ format: ## Format all Go source files.
 tidy: ## Ensure go.mod and go.sum are up to date.
 	$(GO) mod tidy
 
-dev: build ## Build and run the binary with a smaller corpus (1000).
-	./$(BIN_DIR)/$(BINARY)
+index: build ## Build the inverted index with all documents
+	./$(BIN_DIR)/$(BINARY) -buildindex -limit 0
 
-run: build ## Build and run the binary with a larger corpus (15000).
-	./$(BIN_DIR)/$(BINARY) -limit 15000
+dev: build ## Build and run the binary with a smaller corpus (10000).
+	./$(BIN_DIR)/$(BINARY) -disk false -limit 10000
+
+run: build ## Build and run the binary using the on-disk index (auto-builds 100k docs if missing).
+	./$(BIN_DIR)/$(BINARY) -disk true -disklimit 100000
 
 bench: ## Run deterministic index + query benchmarks against the 100k MS MARCO subset.
 	@if [ ! -f data/msmarco-docs-bench-100000.tsv ]; then \
@@ -37,7 +40,7 @@ bench: ## Run deterministic index + query benchmarks against the 100k MS MARCO s
 		echo "Generate it with: scripts/generate-bench-queries.sh"; \
 		exit 1; \
 	fi
-	$(GO) test ./internal/index ./internal/search -run=^$$ -bench=. -benchmem
+	$(GO) test ./internal/index ./internal/indexer ./internal/search -run=^$$ -bench=. -benchmem
 
 clean: ## Remove build artifacts.
 	rm -rf $(BIN_DIR)

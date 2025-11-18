@@ -16,7 +16,7 @@ const (
 )
 
 // PrintResults pretty-prints a list of results together with document metadata.
-func PrintResults(results []search.Result, dataset *data.Dataset, total int, searchTime time.Duration) {
+func PrintResults(results []search.Result, lookup data.DocumentLookup, total int, searchTime time.Duration) {
 	if total == 0 {
 		fmt.Println("No results found. Try another search term :)")
 		return
@@ -26,7 +26,7 @@ func PrintResults(results []search.Result, dataset *data.Dataset, total int, sea
 	fmt.Printf("%s%s%s\n", colorCyan, strings.Repeat("═", 80), colorReset)
 
 	for i, result := range results {
-		doc, ok := dataset.ByID[result.DocID]
+		doc, ok := lookup.Lookup(result.DocID)
 		if !ok {
 			continue
 		}

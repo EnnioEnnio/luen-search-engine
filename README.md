@@ -49,6 +49,9 @@ go run . -limit 100000 -mode phrase
 - `-data` – Path to the TSV file (default: `data/msmarco-docs-preprocess.tsv`)
 - `-limit` – Maximum number of documents to load (default: 1000, set to 0 for all)
 - `-buildindex` – Build the SPIMI-based on-disk index and exit (default: false)
+- `-disk` – Serve queries straight from the persisted index (default: false)
+- `-disklimit` – When `-disk` is enabled, auto-build this many docs if the index is missing (default: 100 k)
+- `-diskcache` – Posting-list cache size (number of tokens) while serving from disk (default: 2048)
 - `-indexdir` – Output directory for the on-disk index (default: `index`)
 - `-indexbatch` – Approximate batch size in bytes for blocked indexing (default: 64 MB)
 - `-cpuprofile` – Path to write a CPU profile (disabled by default)
@@ -62,7 +65,18 @@ Build the on-disk index in bounded batches to keep heap usage under 1 GB:
 GODEBUG=gctrace=1 go run . -data data/msmarco-docs-preprocessed.tsv -buildindex -indexdir index -indexbatch $((64*1024*1024))
 ```
 
-Each batch loads only a few hundred MB of documents, builds a partial inverted index in memory, spills it to disk, and finally performs a multi-way merge into `postings.bin` and `dictionary.tsv` under `-indexdir`. Monitoring `gctrace` while tuning the `-indexbatch` threshold keeps the heap within the desired budget.
+Each batch loads only a few hundred MB of documents, builds a partial inverted index in memory, spills it to disk, and finally performs a multi-way merge into `postings.bin`/`dictionary.tsv` under `-indexdir`. During the same pass we also write `docs.bin`/`docs.idx`, which store the raw MS MARCO rows and an offset table so we can fetch titles/bodies later without keeping them all in RAM. Monitoring `gctrace` while tuning the `-indexbatch` threshold keeps the heap within the desired budget.
+
+### Disk-based serving
+
+Running `make run` (or `./bin/luen -disk`) bootstraps the CLI straight from the on-disk assets:
+
+1. If `dictionary.tsv`, `postings.bin`, `docs.bin`, or `docs.idx` are missing, the program triggers the external builder with `-disklimit` documents (default 100 k) before serving queries.
+2. Startup only loads the dictionary/manifest + doc-index metadata, which keeps warm-up <10 s even for millions of tokens.
+3. At query time we pull just the required posting lists via offsets inside `postings.bin`, caching the hottest ones in an LRU of configurable size (`-diskcache`).
+4. After ranking, we look up the top-k document payloads by seeking into `docs.bin` using its offset index, so doc rendering doesn’t force full-dataset residency.
+
+`make dev` continues to run the in-memory codepath for faster iteration on small corpora, while `make run` ensures the persistent index is reused across runs.
 
 ### Search interface
 
@@ -78,7 +92,7 @@ Search: machine learning algorithms
 
 ## Profiling
 
-- `make bench` exercises the deterministic index + query workloads described in `profile.md`.
+- `make bench` exercises both the in-memory search benchmarks and the new disk pipeline benchmarks (build + serve against the 100k dataset/1k queries). The disk suite reports docs/sec for the builder along with dictionary size metrics and verifies doc fetches from `docs.bin`.
 - For detailed instructions on CLI flags, `go tool pprof`, tracing, and Perfetto-style visualization, see [profile.md](profile.md).
 
 ## Performance

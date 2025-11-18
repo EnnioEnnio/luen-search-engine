@@ -16,7 +16,7 @@ type Match = model.Match
 type Result = model.Result
 
 // Search finds documents that contain all query tokens and orders them by frequency.
-func Search(idx index.InvertedIndex, tokenizer *text.Tokenizer, query string) (res []Result, count int, e error) {
+func Search(src index.PostingSource, tokenizer *text.Tokenizer, query string) (res []Result, count int, e error) {
 	if query == "" {
 		return nil, 0, fmt.Errorf("query must not be empty")
 	}
@@ -26,7 +26,7 @@ func Search(idx index.InvertedIndex, tokenizer *text.Tokenizer, query string) (r
 		return nil, 0, err
 	}
 
-	results, err := ast.Eval(idx)
+	results, err := ast.Eval(src)
 	if err != nil {
 		return nil, 0, err
 	}
