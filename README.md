@@ -2,6 +2,20 @@
 
 # luen-search-engine
 
+## Table of Contents
+
+1. [Prerequisites](#prerequisites)
+2. [Getting Started](#getting-started)
+3. [Dataset setup](#dataset-setup)
+4. [Running with custom parameters](#running-with-custom-parameters)
+5. [Command-line flags](#command-line-flags)
+6. [External/blocked indexing](#externalblocked-indexing)
+7. [Disk-based serving](#disk-based-serving)
+8. [Searching](#searching)
+9. [Profiling](#profiling)
+10. [Performance](#performance)
+11. [Project Layout](#project-layout)
+
 A search engine implementation in Go with support for large-scale document indexing.
 Loads documents from the MS MARCO collection, builds an inverted index, 
 and provides a CLI search interface across query terms.
@@ -20,12 +34,15 @@ For Benchmarking:
 A `makefile` is provided for common tasks:
 
 ```bash
-make help          # Show available commands
-make build         # Compile the binary
-make run           # Build and run with default settings
-make test          # Run all tests
-make bench         # Run performance benchmarks
-make lint          # Run linter
+make help    # Show available commands
+make build   # Compile the binary into bin/luen
+make dev     # Run the CLI in in-memory mode (default limit 10k docs)
+make run     # Run in disk-serving mode (auto-builds 100k docs if needed)
+make index   # Force a full on-disk index build (limit=0)
+make test    # Run all tests
+make bench   # Run benchmark suites (100k dataset + 1k queries)
+make lint    # Run go vet
+make tidy    # go mod tidy
 ```
 
 ### Dataset setup
@@ -36,12 +53,16 @@ You need to make the script executable first: `chmod +x scripts/preprocess_datas
 ### Running with custom parameters
 
 ```bash
-# Build and run
+# Build and run in-memory with a custom limit
 make build
-./bin/luen -limit 100000
+./bin/luen -disk=false -limit 5000
+
+# Force a full disk index build and then serve from disk
+./bin/luen -buildindex -indexdir index -limit 0
+./bin/luen -disk=true -indexdir index -disklimit 100000
 
 # Or use go run directly
-go run . -limit 100000
+go run . -disk=true -disklimit 100000
 ```
 
 ### Command-line flags
@@ -78,6 +99,16 @@ Running `make run` (or `./bin/luen -disk`) bootstraps the CLI straight from the 
 
 `make dev` continues to run the in-memory codepath for faster iteration on small corpora, while `make run` ensures the persistent index is reused across runs.
 
+### Searching
+
+The CLI accepts a small boolean grammar inspired by typical search engines:
+
+- **Implicit AND**: entering `machine learning` requires both tokens (equivalent to `machine and learning`). Token order does not matter for implicit AND.
+- **Explicit AND / OR**: `cat and dog or bird` matches docs containing both `cat` and `dog`, or any doc containing `bird`.
+- **NOT**: `not` negates the immediately following term or group. Example: `cat and not dog` returns docs containing `cat` but not `dog`. `NOT` cannot stand alone; it must be combined with a positive operand via `and`.
+- **Phrase queries**: wrap tokens in double quotes to search for contiguous sequences, e.g., `"machine learning"` requires exact token order.
+- **Parentheses**: override default precedence (not has the highest precendence, implicit AND has higher precedence than OR). Example: `(cat or dog) and bird` ensures the OR is evaluated before the AND.
+
 ### Search interface
 
 Once the index is ready, you can enter search terms at the prompt. 
@@ -85,9 +116,19 @@ Type `>exit` or press `Ctrl+D` to quit.
 
 Example:
 ```
-Search: machine learning algorithms
-📊 Found 42 result(s)
-...
+Search: "New York"
+
+📊 Found 9197 result(s) in 42.236625ms
+════════════════════════════════════════════════════════════════════════════════
+
+[1] Office of the Professions
+    🔗 http://www.op.nysed.gov/prof/sw/swceproviderlist.htm
+    📝 Matches:
+       new count: 192
+       york count: 192
+────────────────────────────────────────────────────────────────────────────────
+
+[2] ...
 ```
 
 ## Profiling
