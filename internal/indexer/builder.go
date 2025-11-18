@@ -132,6 +132,7 @@ func (b *Builder) Build() (*Manifest, error) {
 	return manifest, nil
 }
 
+// validate ensures the builder configuration contains sane values before indexing begins.
 func (b *Builder) validate() error {
 	if b.cfg.DataPath == "" {
 		return errors.New("data path must be provided")

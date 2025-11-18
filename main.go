@@ -76,11 +76,12 @@ func main() {
 
 	if *buildIndex {
 		builder := indexer.NewBuilder(indexer.Config{
-			DataPath:   *dataPath,
-			Limit:      *limit,
-			BatchBytes: *batchBytes,
-			OutputDir:  *indexDir,
-			Tokenizer:  tokenizer,
+			DataPath:     *dataPath,
+			Limit:        *limit,
+			BatchBytes:   *batchBytes,
+			OutputDir:    *indexDir,
+			KeepPartials: false,
+			Tokenizer:    tokenizer,
 		})
 		builderStart := time.Now()
 		manifest, err := builder.Build()

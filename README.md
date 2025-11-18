@@ -48,11 +48,21 @@ go run . -limit 100000 -mode phrase
 
 - `-data` – Path to the TSV file (default: `data/msmarco-docs-preprocess.tsv`)
 - `-limit` – Maximum number of documents to load (default: 1000, set to 0 for all)
-- `-mode` – Search mode (default: "single" for AND/OR search of multiple search terms, "phrase" for phrase search)
+- `-buildindex` – Build the SPIMI-based on-disk index and exit (default: false)
+- `-indexdir` – Output directory for the on-disk index (default: `index`)
+- `-indexbatch` – Approximate batch size in bytes for blocked indexing (default: 64 MB)
 - `-cpuprofile` – Path to write a CPU profile (disabled by default)
 - `-memprofile` – Path to write a heap profile (disabled by default)
 
-> Note: The -mode flag is to be discontinued in future versions. Phrase search will be included via a query parser.
+### External/blocked indexing
+
+Build the on-disk index in bounded batches to keep heap usage under 1 GB:
+
+```bash
+GODEBUG=gctrace=1 go run . -data data/msmarco-docs-preprocessed.tsv -buildindex -indexdir index -indexbatch $((64*1024*1024))
+```
+
+Each batch loads only a few hundred MB of documents, builds a partial inverted index in memory, spills it to disk, and finally performs a multi-way merge into `postings.bin` and `dictionary.tsv` under `-indexdir`. Monitoring `gctrace` while tuning the `-indexbatch` threshold keeps the heap within the desired budget.
 
 ### Search interface
 
