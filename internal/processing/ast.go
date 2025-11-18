@@ -90,7 +90,6 @@ func (n *PhraseNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 	if len(n.Tokens) == 0 {
 		return nil, nil
 	}
-
 	docLists := make([]map[DocID]Match, len(n.Tokens))
 	for ti, token := range n.Tokens {
 		posting, ok := idx[token]
@@ -110,89 +109,45 @@ func (n *PhraseNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 	}
 
 	results := make([]Result, 0)
-	tokenCount := len(docLists)
 
-	for docID := range docLists[0] {
-		positions := make([][]int, tokenCount)
-		tokens := make([]Token, tokenCount)
-		missing := false
+	currentDocList := docLists[0]
+	for i := 0; i < len(docLists)-1; i++ {
+		currentDocList = n.checkPhrasePairs(currentDocList, docLists[i+1])
+	}
+	if len(currentDocList) == 0 {
+		return results, nil
+	}
 
-		for ti := 0; ti < tokenCount; ti++ {
-			match, ok := docLists[ti][docID]
+	phraseLength := len(docLists)
+	for docID, lastMatch := range currentDocList {
+		phraseEndPositions := lastMatch.Positions
+		if len(phraseEndPositions) == 0 {
+			continue
+		}
+		matches := make([]Match, phraseLength)
+		for i := 0; i < phraseLength; i++ {
+			oldMatch, ok := docLists[i][docID]
 			if !ok {
-				missing = true
-				break
+				continue // actually this can not happen, just to be sure
 			}
-			positions[ti] = match.Positions
-			tokens[ti] = match.Token
-		}
-		if missing {
-			continue
-		}
-
-		outMatches := make([]Match, tokenCount)
-		for ti := 0; ti < tokenCount; ti++ {
-			outMatches[ti] = Match{Token: tokens[ti], Positions: make([]int, 0)}
-		}
-
-		idxs := make([]int, tokenCount)
-
-	OUTER:
-		for {
-			for ti := 0; ti < tokenCount; ti++ {
-				if idxs[ti] >= len(positions[ti]) {
-					break OUTER
-				}
+			shift := phraseLength - 1 - i
+			positions := make([]int, 0)
+			for _, p := range phraseEndPositions {
+				positions = append(positions, p-shift)
 			}
-
-			currentPositions := make([]int, tokenCount)
-			for ti := 0; ti < tokenCount; ti++ {
-				currentPositions[ti] = positions[ti][idxs[ti]]
+			matches[i] = Match{
+				Token:     oldMatch.Token,
+				Frequency: len(positions),
+				Positions: positions,
 			}
-
-			ok := true
-			for ti := 1; ti < tokenCount; ti++ {
-				if currentPositions[ti] != currentPositions[0]+ti {
-					ok = false
-					break
-				}
-			}
-
-			if ok {
-				for ti := 0; ti < tokenCount; ti++ {
-					outMatches[ti].Positions = append(outMatches[ti].Positions, currentPositions[ti])
-				}
-				for ti := 0; ti < tokenCount; ti++ {
-					idxs[ti]++
-				}
-				continue
-			}
-
-			minPos := currentPositions[0]
-			minIdx := 0
-			for ti := 1; ti < tokenCount; ti++ {
-				if currentPositions[ti] < minPos {
-					minPos = currentPositions[ti]
-					minIdx = ti
-				}
-			}
-			idxs[minIdx]++
-		}
-
-		if len(outMatches[0].Positions) == 0 {
-			continue
-		}
-
-		total := len(outMatches[0].Positions)
-		for ti := 0; ti < tokenCount; ti++ {
-			outMatches[ti].Frequency = len(outMatches[ti].Positions)
 		}
 
 		results = append(results, Result{
 			DocID:              docID,
-			TotalTermFrequency: total,
-			Matches:            outMatches,
+			TotalTermFrequency: lastMatch.Frequency,
+			Matches:            matches,
 		})
+
 	}
 
 	return results, nil
@@ -359,4 +314,44 @@ func mapToSlice(m map[DocID]Result) []Result {
 		out = append(out, r)
 	}
 	return out
+}
+
+func (n *PhraseNode) checkPhrasePairs(docList1, docList2 map[DocID]Match) map[DocID]Match {
+	merged := make(map[DocID]Match)
+	for docID, matches1 := range docList1 {
+		matches2, ok := docList2[docID]
+		if !ok {
+			continue
+		}
+
+		i, j := 0, 0
+		positions1 := matches1.Positions
+		positions2 := matches2.Positions
+		resultPositions := make([]int, 0)
+
+		for i < len(positions1) && j < len(positions2) {
+			need := positions1[i] + 1
+			if need == positions2[j] {
+				resultPositions = append(resultPositions, positions2[j])
+				i++
+				j++
+				continue
+			}
+			if need < positions2[j] {
+				i++
+			} else if need > positions2[j] {
+				j++
+			}
+
+		}
+		if len(resultPositions) > 0 {
+			merged[docID] = Match{
+				Token:     matches2.Token,
+				Frequency: len(resultPositions),
+				Positions: resultPositions,
+			}
+		}
+	}
+	return merged
+
 }
