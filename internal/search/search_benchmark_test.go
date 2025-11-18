@@ -1,7 +1,9 @@
 package search
 
 import (
+	"sync"
 	"testing"
+	"time"
 
 	"luen-search-engine/internal/benchutil"
 	"luen-search-engine/internal/index"
@@ -9,19 +11,35 @@ import (
 	"luen-search-engine/internal/text"
 )
 
+var (
+	inMemoryQueryOnce sync.Once
+	inMemorySource    *processing.MemorySource
+	inMemoryDocs      int
+	inMemoryTokens    int
+)
+
 func BenchmarkSearchWorkload(b *testing.B) {
 	dataset := benchutil.LoadDataset(b)
 	tokenizer := text.NewTokenizer()
-	idx := index.Build(dataset.Documents, tokenizer)
+	inMemoryQueryOnce.Do(func() {
+		idx := index.Build(dataset.Documents, tokenizer)
+		inMemorySource = processing.NewMemorySource(idx)
+		inMemoryDocs = len(dataset.Documents)
+		inMemoryTokens = idx.TokenCount()
+	})
+	if inMemorySource == nil {
+		b.Fatal("failed to prepare in-memory posting source")
+	}
 	queries := benchutil.LoadQueries(b)
 	if len(queries) == 0 {
 		b.Fatal("benchmark queries must not be empty")
 	}
 
 	b.ReportAllocs()
+	loopStart := time.Now()
 	b.ResetTimer()
 
-	source := processing.NewMemorySource(idx)
+	source := inMemorySource
 	for i := 0; i < b.N; i++ {
 		for _, query := range queries {
 			if _, _, err := Search(source, tokenizer, query); err != nil {
@@ -29,6 +47,21 @@ func BenchmarkSearchWorkload(b *testing.B) {
 			}
 		}
 	}
+	b.StopTimer()
+	loopDuration := time.Since(loopStart)
 
 	b.ReportMetric(float64(len(queries)), "queries")
+	totalQueries := len(queries) * b.N
+	avgPerQuery := time.Duration(0)
+	if totalQueries > 0 {
+		avgPerQuery = loopDuration / time.Duration(totalQueries)
+	}
+	benchutil.LogBenchmarkSummary(b, "InMemoryQueryServing", map[string]interface{}{
+		"documents":        inMemoryDocs,
+		"unique_tokens":    inMemoryTokens,
+		"queries_per_loop": len(queries),
+		"total_queries":    totalQueries,
+		"loop_time":        loopDuration,
+		"avg_per_query":    avgPerQuery,
+	})
 }

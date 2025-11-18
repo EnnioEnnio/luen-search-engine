@@ -65,7 +65,7 @@ Build the on-disk index in bounded batches to keep heap usage under 1 GB:
 GODEBUG=gctrace=1 go run . -data data/msmarco-docs-preprocessed.tsv -buildindex -indexdir index -indexbatch $((64*1024*1024))
 ```
 
-Each batch loads only a few hundred MB of documents, builds a partial inverted index in memory, spills it to disk, and finally performs a multi-way merge into `postings.bin`/`dictionary.tsv` under `-indexdir`. During the same pass we also write `docs.bin`/`docs.idx`, which store the raw MS MARCO rows and an offset table so we can fetch titles/bodies later without keeping them all in RAM. Monitoring `gctrace` while tuning the `-indexbatch` threshold keeps the heap within the desired budget.
+Each batch loads only a few MB of documents (default: 64 MB to not exceed 1GB of RAM), builds a partial inverted index in memory, spills it to disk, and finally performs a multi-way merge into `postings.bin`/`dictionary.tsv` under `-indexdir`. During the same pass we also write `docs.bin`/`docs.idx`, which store the raw MS MARCO rows and an offset table so we can fetch titles/bodies later without keeping them all in RAM. Monitoring `gctrace` while tuning the `-indexbatch` threshold keeps the heap within the desired budget.
 
 ### Disk-based serving
 

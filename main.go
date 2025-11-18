@@ -105,6 +105,7 @@ func main() {
 	)
 
 	if *serveDisk {
+		loadStart := time.Now()
 		if err := ensureDiskIndex(*indexDir, *dataPath, *diskLimit, tokenizer, *batchBytes); err != nil {
 			log.Fatalf("failed to prepare on-disk index: %v", err)
 		}
@@ -128,7 +129,7 @@ func main() {
 		})
 		postingSource = store
 		docLookup = docs
-		fmt.Printf("Loaded dictionary with %d tokens from %s.\n", dict.Size(), *indexDir)
+		fmt.Printf("Loaded dictionary with %d tokens from %s in %s.\n", dict.Size(), *indexDir, time.Since(loadStart).Round(time.Millisecond))
 	} else {
 		loadStart := time.Now()
 		dataset, err := data.Load(*dataPath, *limit)
@@ -139,7 +140,7 @@ func main() {
 
 		indexStart := time.Now()
 		inverted := index.Build(dataset.Documents, tokenizer)
-		fmt.Printf("Inverted Index created with %d unique tokens in %s.\n", inverted.TokenCount(), time.Since(indexStart).Round(time.Millisecond))
+		fmt.Printf("Inverted Index created in Memory with %d unique tokens in %s.\n", inverted.TokenCount(), time.Since(indexStart).Round(time.Millisecond))
 		postingSource = processing.NewMemorySource(inverted)
 		docLookup = dataset
 	}
