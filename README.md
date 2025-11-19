@@ -90,7 +90,7 @@ GODEBUG=gctrace=1 go run . -data data/msmarco-docs-preprocessed.tsv -buildindex 
 
 Each batch loads only a few MB of documents (default: 64 MB to not exceed 1GB of RAM), builds a partial inverted index in memory, spills it to disk, and finally performs a multi-way merge into `postings.bin`/`dictionary.tsv` under `-indexdir`. During the same pass we also write `docs.bin`/`docs.idx`, which store the raw MS MARCO rows and an offset table so we can fetch titles/bodies later without keeping them all in RAM. Monitoring `gctrace` while tuning the `-indexbatch` threshold keeps the heap within the desired budget.
 
-Right now, the indexing takes about 2h on M1 Pro (1:15 h for partial indexing, 35 min for merging).
+Right now, the indexing takes about 1:15 h on M1 Pro.
 The resulting on-disk structures for the full MS MARCO corpus are about 44 GB in total: 
 - `dictionary.tsv` (term → posting list offsets): ~0.65 GB
 - `docs.bin` (raw document payloads): ~22.9 GB
