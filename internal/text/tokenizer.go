@@ -54,7 +54,7 @@ func (t *Tokenizer) Tokenize(value string) []string {
 	}
 
 	for _, r := range lower {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
 			builder.WriteRune(r)
 			continue
 		}
