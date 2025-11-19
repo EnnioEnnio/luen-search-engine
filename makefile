@@ -3,6 +3,7 @@
 GO ?= go
 BIN_DIR := bin
 BINARY := luen
+INDEX_DIR := index
 
 build: ## Build the project binary.
 	@mkdir -p $(BIN_DIR)
@@ -44,6 +45,7 @@ bench: ## Run deterministic index + query benchmarks against the 100k MS MARCO s
 
 clean: ## Remove build artifacts.
 	rm -rf $(BIN_DIR)
+	rm -rf $(INDEX_DIR)
 
 help: ## Show available make targets.
 	@awk -F':.*##' '/^[a-zA-Z][a-zA-Z0-9_-]*:.*##/ {printf "%-10s %s\n", $$1, $$2}' $(MAKEFILE_LIST)

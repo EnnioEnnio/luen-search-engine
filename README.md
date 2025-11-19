@@ -43,6 +43,7 @@ make test    # Run all tests
 make bench   # Run benchmark suites (100k dataset + 1k queries)
 make lint    # Run go vet
 make tidy    # go mod tidy
+make clean   # Remove build artifacts and index directory
 ```
 
 ### Dataset setup
