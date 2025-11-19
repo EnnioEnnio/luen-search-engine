@@ -90,6 +90,15 @@ GODEBUG=gctrace=1 go run . -data data/msmarco-docs-preprocessed.tsv -buildindex 
 
 Each batch loads only a few MB of documents (default: 64 MB to not exceed 1GB of RAM), builds a partial inverted index in memory, spills it to disk, and finally performs a multi-way merge into `postings.bin`/`dictionary.tsv` under `-indexdir`. During the same pass we also write `docs.bin`/`docs.idx`, which store the raw MS MARCO rows and an offset table so we can fetch titles/bodies later without keeping them all in RAM. Monitoring `gctrace` while tuning the `-indexbatch` threshold keeps the heap within the desired budget.
 
+Right now, the indexing takes about 2h on M1 Pro (1:15 h for partial indexing, 35 min for merging).
+The resulting on-disk structures for the full MS MARCO corpus are about 44 GB in total: 
+- `dictionary.tsv` (term → posting list offsets): ~0.65 GB
+- `docs.bin` (raw document payloads): ~22.9 GB
+- `docs.idx` (docID → docs.bin offsets): ~0.05 GB
+- `postings.bin` (compressed posting lists): ~20.7 GB
+
+> Tip: run with `GODEBUG=gctrace=1` (e.g. `GODEBUG=gctrace=1 ./bin/luen ...`) to inspect per-batch GC logs and ensure peak memory stays within limits.
+
 ### Disk-based serving
 
 Running `make run` (or `./bin/luen -disk`) bootstraps the CLI straight from the on-disk assets:
@@ -98,6 +107,8 @@ Running `make run` (or `./bin/luen -disk`) bootstraps the CLI straight from the 
 2. Startup only loads the dictionary/manifest + doc-index metadata, which keeps warm-up <10 s even for millions of tokens.
 3. At query time we pull just the required posting lists via offsets inside `postings.bin`, caching the hottest ones in an LRU of configurable size (`-diskcache`).
 4. After ranking, we look up the top-k document payloads by seeking into `docs.bin` using its offset index, so doc rendering doesn’t force full-dataset residency.
+
+If the whole dataset is loaded via `limit=0`, startup time is ~11.5 seconds on M1 Pro, with an initial memory footprint of ~3.6 GB
 
 `make dev` continues to run the in-memory codepath for faster iteration on small corpora, while `make run` ensures the persistent index is reused across runs.
 
