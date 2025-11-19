@@ -41,6 +41,7 @@ make run     # Run in disk-serving mode (auto-builds 100k docs if needed)
 make index   # Force a full on-disk index build (limit=0)
 make test    # Run all tests
 make bench   # Run benchmark suites (100k dataset + 1k queries)
+make format  # go fmt
 make lint    # Run go vet
 make tidy    # go mod tidy
 make clean   # Remove build artifacts and index directory
