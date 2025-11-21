@@ -80,6 +80,12 @@ func (b *Builder) Build() (*Manifest, error) {
 	}
 	defer loader.Close()
 
+	docWriter, err := data.NewDocumentStoreWriter(b.cfg.OutputDir)
+	if err != nil {
+		return nil, fmt.Errorf("create document store: %w", err)
+	}
+	defer docWriter.Close()
+
 	var partialPaths []string
 	totalProcessed := 0
 	for batch := 0; ; batch++ {
@@ -95,6 +101,12 @@ func (b *Builder) Build() (*Manifest, error) {
 		}
 		totalProcessed = totalProcessed + len(docs)
 		log.Printf("indexing batch %d (%d docs --- %d/3213835 in total)", batch+1, len(docs), totalProcessed)
+		for _, doc := range docs {
+			if err := docWriter.Append(doc); err != nil {
+				return nil, fmt.Errorf("write doc store: %w", err)
+			}
+		}
+
 		partial := index.Build(docs, b.cfg.Tokenizer)
 		partialPath := filepath.Join(tempDir, fmt.Sprintf(partialFilePattern, batch))
 		if err := spillPartialIndex(partialPath, partial); err != nil {
