@@ -118,6 +118,7 @@ type lruCache struct {
 	capacity int
 	entries  map[string]*list.Element
 	ll       *list.List
+	mu       sync.Mutex
 }
 
 type kv struct {
@@ -137,10 +138,13 @@ func (c *lruCache) Get(key string) (*index.PostingList, bool) {
 	if c == nil {
 		return nil, false
 	}
+	c.mu.Lock()
 	if elem, ok := c.entries[key]; ok {
 		c.ll.MoveToFront(elem)
+		c.mu.Unlock()
 		return elem.Value.(kv).value, true
 	}
+	c.mu.Unlock()
 	return nil, false
 }
 
@@ -148,8 +152,10 @@ func (c *lruCache) Add(key string, value *index.PostingList) {
 	if c == nil {
 		return
 	}
+	c.mu.Lock()
 	if elem, ok := c.entries[key]; ok {
 		c.ll.MoveToFront(elem)
+		c.mu.Unlock()
 		elem.Value = kv{key: key, value: value}
 		return
 	}
@@ -158,6 +164,7 @@ func (c *lruCache) Add(key string, value *index.PostingList) {
 	if c.ll.Len() > c.capacity {
 		c.evict()
 	}
+	c.mu.Unlock()
 }
 
 func (c *lruCache) evict() {
