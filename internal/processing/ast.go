@@ -71,7 +71,7 @@ func (n *TermNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 	for docID, positions := range posting.Docs {
 		match := Match{
 			Token:     n.Token,
-			Frequency: uint32(len(positions)),
+			Frequency: len(positions),
 			Positions: positions,
 		}
 		results = append(results, Result{
@@ -101,7 +101,7 @@ func (n *PhraseNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 		for docID, positions := range posting.Docs {
 			docs[docID] = Match{
 				Token:     token,
-				Frequency: uint32(len(positions)),
+				Frequency: len(positions),
 				Positions: positions,
 			}
 		}
@@ -130,14 +130,14 @@ func (n *PhraseNode) Eval(idx index.InvertedIndex) ([]Result, error) {
 			if !ok {
 				continue // actually this can not happen, just to be sure
 			}
-			shift := uint32(phraseLength - 1 - i)
-			positions := make([]uint32, 0)
+			shift := phraseLength - 1 - i
+			positions := make([]int, 0)
 			for _, p := range phraseEndPositions {
 				positions = append(positions, p-shift)
 			}
 			matches[i] = Match{
 				Token:     oldMatch.Token,
-				Frequency: uint32(len(positions)),
+				Frequency: len(positions),
 				Positions: positions,
 			}
 		}
@@ -327,7 +327,7 @@ func (n *PhraseNode) checkPhrasePairs(docList1, docList2 map[DocID]Match) map[Do
 		i, j := 0, 0
 		positions1 := matches1.Positions
 		positions2 := matches2.Positions
-		resultPositions := make([]uint32, 0)
+		resultPositions := make([]int, 0)
 
 		for i < len(positions1) && j < len(positions2) {
 			need := positions1[i] + 1
@@ -347,7 +347,7 @@ func (n *PhraseNode) checkPhrasePairs(docList1, docList2 map[DocID]Match) map[Do
 		if len(resultPositions) > 0 {
 			merged[docID] = Match{
 				Token:     matches2.Token,
-				Frequency: uint32(len(resultPositions)),
+				Frequency: len(resultPositions),
 				Positions: resultPositions,
 			}
 		}

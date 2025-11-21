@@ -8,11 +8,11 @@ import (
 
 type DocID = model.DocID
 type Token = model.Token
-type Position = uint32 // might be too small
+type Position = int
 
 // PostingList stores document frequencies and positions within each document for a single token.
 type PostingList struct {
-	DocFreq uint32
+	DocFreq int
 	Docs    map[DocID][]Position
 }
 
@@ -21,7 +21,7 @@ type InvertedIndex map[Token]*PostingList
 
 // Build constructs an inverted index for the provided documents.
 func Build(docs []data.Document, tokenizer *text.Tokenizer) InvertedIndex {
-	const approxVocab = 5_000_000 // determined via logarithmic regression and some measurements
+	const approxVocab = 100_000 // 1000 documents have roughly around 70.000 unique token according to `make dev`
 	idx := make(InvertedIndex, approxVocab)
 
 	for _, doc := range docs {
@@ -39,7 +39,7 @@ func Build(docs []data.Document, tokenizer *text.Tokenizer) InvertedIndex {
 			}
 
 			positions, seen := posting.Docs[doc.ID]
-			posting.Docs[doc.ID] = append(positions, uint32(i))
+			posting.Docs[doc.ID] = append(positions, i)
 			if !seen {
 				posting.DocFreq++
 			}

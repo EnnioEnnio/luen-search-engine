@@ -15,6 +15,7 @@ import (
 
 	"luen-search-engine/internal/data"
 	"luen-search-engine/internal/index"
+	"luen-search-engine/internal/indexer"
 	"luen-search-engine/internal/output"
 	"luen-search-engine/internal/search"
 	"luen-search-engine/internal/text"
@@ -44,6 +45,9 @@ func main() {
 	// Argparse and profiler setup
 	dataPath := flag.String("data", "data/msmarco-docs-preprocessed.tsv", "Path to the MS MARCO TSV file")
 	limit := flag.Int("limit", 1000, "Maximum number of documents to load (0 means all)")
+	buildIndex := flag.Bool("buildindex", false, "Build the on-disk index and exit")
+	indexDir := flag.String("indexdir", "index", "Directory to store the on-disk index")
+	batchBytes := flag.Int64("indexbatch", 64*1024*1024, "Approximate batch size in bytes for external indexing")
 	cpuprofile := flag.String("cpuprofile", "", "Write CPU profile to file")
 	memprofile := flag.String("memprofile", "", "Write memory profile to file")
 	flag.Parse()
@@ -69,6 +73,25 @@ func main() {
 
 	// Search engine setup
 	tokenizer := text.NewTokenizer()
+
+	if *buildIndex {
+		builder := indexer.NewBuilder(indexer.Config{
+			DataPath:     *dataPath,
+			Limit:        *limit,
+			BatchBytes:   *batchBytes,
+			OutputDir:    *indexDir,
+			KeepPartials: false,
+			Tokenizer:    tokenizer,
+		})
+		builderStart := time.Now()
+		manifest, err := builder.Build()
+		if err != nil {
+			log.Fatalf("failed to build disk index: %v", err)
+		}
+		builderTime := time.Since(builderStart).Round(time.Millisecond)
+		fmt.Printf("On-disk index created at %s with %d documents and %d tokens in %s\n", *indexDir, manifest.DocumentCount, manifest.TokenCount, builderTime)
+		return
+	}
 
 	loadStart := time.Now()
 	dataset, err := data.Load(*dataPath, *limit)
