@@ -70,7 +70,7 @@ go run . -disk=true -disklimit 100000
 ### Command-line flags
 
 - `-data` – Path to the TSV file (default: `data/msmarco-docs-preprocessed.tsv`)
-- `-limit` – Maximum number of documents to load (default: 1000, set to 0 for all)
+- `-limit` – Maximum number of documents to load (default: 10000, set to 0 for all)
 - `-buildindex` – Build the SPIMI-based on-disk index and exit (default: false)
 - `-disk` – Serve queries straight from the persisted index (default: false)
 - `-disklimit` – When `-disk` is enabled, auto-build this many docs if the index is missing (default: 100 k)
