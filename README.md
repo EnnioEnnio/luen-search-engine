@@ -34,17 +34,19 @@ For Benchmarking:
 A `makefile` is provided for common tasks:
 
 ```bash
-make help    # Show available commands
-make build   # Compile the binary into bin/luen
-make dev     # Run the CLI in in-memory mode (default limit 10k docs)
-make run     # Run in disk-serving mode (auto-builds 100k docs if needed)
-make index   # Force a full on-disk index build (limit=0)
-make test    # Run all tests
-make bench   # Run benchmark suites (100k dataset + 1k queries)
-make format  # go fmt
-make lint    # Run go vet
-make tidy    # go mod tidy
-make clean   # Remove build artifacts and index directory
+make help        # Show available commands
+make build       # Compile the binary into bin/luen
+make frontend    # Compile the TypeScript frontend
+make dev         # Run the CLI in in-memory mode (default limit 10k docs)
+make run         # Run in disk-serving mode (auto-builds 100k docs if needed)
+make start       # Start the HTTP server using the on-disk index (auto-builds full index if needed)
+make index       # Force a full on-disk index build (limit=0)
+make test        # Run all tests
+make bench       # Run benchmark suites (100k dataset + 1k queries)
+make format      # go fmt
+make lint        # Run go vet
+make tidy        # go mod tidy
+make clean       # Remove build artifacts and index directory
 ```
 
 ### Dataset setup
@@ -142,6 +144,21 @@ Search: "New York"
 ────────────────────────────────────────────────────────────────────────────────
 
 [2] ...
+```
+
+### Browser Frontend
+
+The project includes a browser-based frontend with a "Liquid Glass" design.
+
+To start the server:
+```bash
+make start
+```
+Then open [http://localhost:8080](http://localhost:8080) in your browser.
+
+The frontend is built with TypeScript. To rebuild the frontend assets:
+```bash
+make frontend
 ```
 
 ## Profiling

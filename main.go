@@ -2,11 +2,13 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -55,6 +57,8 @@ func main() {
 	diskCache := flag.Int("diskcache", 2048, "Number of posting lists to cache when serving from disk")
 	cpuprofile := flag.String("cpuprofile", "", "Write CPU profile to file")
 	memprofile := flag.String("memprofile", "", "Write memory profile to file")
+	// Server mode
+	serverMode := flag.Bool("server", false, "Start HTTP server")
 	flag.Parse()
 
 	if *cpuprofile != "" {
@@ -149,6 +153,11 @@ func main() {
 		defer cleanup[i]()
 	}
 
+	if *serverMode {
+		startServer(postingSource, docLookup, tokenizer)
+		return
+	}
+
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("Your Search Engine is ready! Type a search term to use it, >exit to quit")
 
@@ -184,6 +193,68 @@ func main() {
 
 		output.PrintResults(results, docLookup, total, searchTime)
 	}
+}
+
+func startServer(postingSource index.PostingSource, docLookup data.DocumentLookup, tokenizer *text.Tokenizer) {
+	http.Handle("/", http.FileServer(http.Dir("./static")))
+
+	http.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query().Get("q")
+		if query == "" {
+			http.Error(w, "Missing query parameter 'q'", http.StatusBadRequest)
+			return
+		}
+
+		start := time.Now()
+		results, total, err := search.Search(postingSource, tokenizer, strings.ToLower(query))
+		duration := time.Since(start)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		type Result struct {
+			ID      string `json:"id"`
+			Title   string `json:"title"`
+			URL     string `json:"url"`
+			Content string `json:"content"`
+			Score   int    `json:"score"`
+		}
+
+		type Response struct {
+			Results  []Result `json:"results"`
+			Total    int      `json:"total"`
+			Duration string   `json:"duration"`
+		}
+
+		var jsonResults []Result
+		for _, res := range results {
+			doc, ok := docLookup.Lookup(res.DocID)
+			if !ok {
+				continue
+			}
+			jsonResults = append(jsonResults, Result{
+				ID:      fmt.Sprint(res.DocID),
+				Title:   doc.Title,
+				URL:     doc.URL,
+				Content: doc.Text,
+				Score:   res.TotalTermFrequency,
+			})
+		}
+
+		resp := Response{
+			Results:  jsonResults,
+			Total:    total,
+			Duration: duration.String(),
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	})
+
+	fmt.Println("Server started at http://localhost:8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func ensureDiskIndex(dir, dataPath string, limit int, tokenizer *text.Tokenizer, batchBytes int64) error {
