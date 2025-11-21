@@ -71,8 +71,9 @@ function renderResults(results, total, duration) {
         titleLink.target = '_blank';
         titleLink.textContent = result.title || `Document #${result.id}`;
         const score = document.createElement('span');
+        const truncScore = Math.trunc(result.score);
         score.className = 'result-score';
-        score.textContent = `Score: ${result.score.toFixed(2)}`;
+        score.textContent = `Score: ${truncScore}`;
         header.appendChild(titleLink);
         header.appendChild(score);
         const url = document.createElement('div');
