@@ -25,7 +25,7 @@ index: build ## Build the inverted index with all documents
 	./$(BIN_DIR)/$(BINARY) -buildindex -limit 0
 
 dev: build ## Build and run the binary with a smaller corpus (10000).
-	./$(BIN_DIR)/$(BINARY) -disk false -limit 10000
+	./$(BIN_DIR)/$(BINARY) -disk=false -limit 10000
 
 run: build ## Build and run the binary using the on-disk index (auto-builds 100k docs if missing).
 	./$(BIN_DIR)/$(BINARY) -disk true -disklimit 100000
