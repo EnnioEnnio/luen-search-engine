@@ -1,0 +1,39 @@
+0		catXXXX	cat
+1		dogXXXX	dog
+2		bitesXXXX	bites
+3		catcatXXXX	cat cat
+4		catdogXXXX	cat dog
+5		catbitesXXXX	cat bites
+6		dogcatXXXX	dog cat
+7		dogdogXXXX	dog dog
+8		dogbitesXXXX	dog bites
+9		bitescatXXXX	bites cat
+10		bitesdogXXXX	bites dog
+11		bitesbitesXXXX	bites bites
+12		catcatcatXXXX	cat cat cat
+13		catcatdogXXXX	cat cat dog
+14		catcatbitesXXXX	cat cat bites
+15		catdogcatXXXX	cat dog cat
+16		catdogdogXXXX	cat dog dog
+17		catdogbitesXXXX	cat dog bites
+18		catbitescatXXXX	cat bites cat
+19		catbitesdogXXXX	cat bites dog
+20		catbitesbitesXXXX	cat bites bites
+21		dogcatcatXXXX	dog cat cat
+22		dogcatdogXXXX	dog cat dog
+23		dogcatbitesXXXX	dog cat bites
+24		dogdogcatXXXX	dog dog cat
+25		dogdogdogXXXX	dog dog dog
+26		dogdogbitesXXXX	dog dog bites
+27		dogbitescatXXXX	dog bites cat
+28		dogbitesdogXXXX	dog bites dog
+29		dogbitesbitesXXXX	dog bites bites
+30		bitescatcatXXXX	bites cat cat
+31		bitescatdogXXXX	bites cat dog
+32		bitescatbitesXXXX	bites cat bites
+33		bitesdogcatXXXX	bites dog cat
+34		bitesdogdogXXXX	bites dog dog
+35		bitesdogbitesXXXX	bites dog bites
+36		bitesbitescatXXXX	bites bites cat
+37		bitesbitesdogXXXX	bites bites dog
+38		bitesbitesbitesXXXX	bites bites bites

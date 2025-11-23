@@ -2,9 +2,12 @@ package benchutil
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -123,6 +126,11 @@ func benchmarkDatasetPath(tb testing.TB) string {
 	return datasetAbsPath
 }
 
+// DatasetPathAbs returns the absolute filesystem path to the benchmark dataset TSV.
+func DatasetPathAbs(tb testing.TB) string {
+	return benchmarkDatasetPath(tb)
+}
+
 func benchmarkQueriesPath(tb testing.TB) string {
 	tb.Helper()
 	queriesAbsPathOnce.Do(func() {
@@ -137,6 +145,37 @@ func benchmarkQueriesPath(tb testing.TB) string {
 		tb.Fatalf("bench queries path error: %v", queriesPathErr)
 	}
 	return queriesAbsPath
+}
+
+// QueriesPathAbs returns the absolute filesystem path to the benchmark queries file.
+func QueriesPathAbs(tb testing.TB) string {
+	return benchmarkQueriesPath(tb)
+}
+
+// WithMutedLogs temporarily silences the global logger while executing fn.
+func WithMutedLogs(tb testing.TB, fn func()) {
+	tb.Helper()
+	prev := log.Writer()
+	log.SetOutput(io.Discard)
+	defer log.SetOutput(prev)
+	fn()
+}
+
+// LogBenchmarkSummary renders a consistent summary for benchmark metrics.
+func LogBenchmarkSummary(tb testing.TB, name string, fields map[string]interface{}) {
+	tb.Helper()
+	if len(fields) == 0 {
+		return
+	}
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	tb.Logf("=== %s ===", name)
+	for _, key := range keys {
+		tb.Logf("  %-20s %v", key+":", fields[key])
+	}
 }
 
 func findRepoRoot() (string, error) {

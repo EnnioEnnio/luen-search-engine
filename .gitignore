@@ -32,10 +32,13 @@ go.work.sum
 .vscode/
 .DS_Store
 
-# Excluding datasets and binaries
+# Excluding datasets
 /data/msmarco-docs.tsv
 /data/msmarco-docs-bench-100000.tsv
 /data/msmarco-docs-preprocessed.tsv
+
+# Exclude binaries and the index
+/index
 /bin
 .cache
 
