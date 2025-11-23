@@ -57,6 +57,7 @@ func main() {
 	diskCache := flag.Int("diskcache", 2048, "Number of posting lists to cache when serving from disk")
 	cpuprofile := flag.String("cpuprofile", "", "Write CPU profile to file")
 	memprofile := flag.String("memprofile", "", "Write memory profile to file")
+	enableSynonyms := flag.Bool("enableSynonyms", false, "Enable synonym expansion using the SPLADE-like model")
 	flag.Parse()
 
 	if *cpuprofile != "" {
@@ -150,12 +151,15 @@ func main() {
 	for i := len(cleanup) - 1; i >= 0; i-- {
 		defer cleanup[i]()
 	}
-
-	synonymExpander, err := synonyms.NewSpladeLike()
-	if err != nil {
-		log.Fatalf("failed to create synonym expander: %v", err)
+	var synonymExpander *synonyms.SpladeLike
+	if *enableSynonyms {
+		se, err := synonyms.NewSpladeLike()
+		if err != nil {
+			log.Fatalf("failed to create synonym expander: %v", err)
+		}
+		synonymExpander = se
+		fmt.Println("Synonym Expander model loaded.")
 	}
-	fmt.Println("Synonym Expander model loaded.")
 
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("Your Search Engine is ready! Type a search term to use it, >exit to quit")
@@ -184,7 +188,15 @@ func main() {
 
 		searchStart := time.Now()
 		ctx := context.Background()
-		results, total, err := search.Search(ctx, postingSource, tokenizer, synonymExpander, searchTerm)
+		var (
+			results []search.Result
+			total   int
+		)
+		if *enableSynonyms && synonymExpander != nil {
+			results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm, synonymExpander)
+		} else {
+			results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm)
+		}
 		searchTime := time.Since(searchStart)
 		if err != nil {
 			fmt.Printf("Error while searching: %v\n", err)

@@ -79,6 +79,7 @@ go run . -disk=true -disklimit 100000
 - `-indexbatch` – Approximate batch size in bytes for blocked indexing (default: 64 MB)
 - `-cpuprofile` – Path to write a CPU profile (disabled by default)
 - `-memprofile` – Path to write a heap profile (disabled by default)
+- `-enableSynonyms` -  enable the synonym expansion using the SPLADE-like model (default: false)
 
 ### External/blocked indexing
 

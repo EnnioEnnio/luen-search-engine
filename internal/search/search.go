@@ -18,7 +18,7 @@ type Match = model.Match
 type Result = model.Result
 
 // Search finds documents that contain all query tokens and orders them by frequency.
-func Search(ctx context.Context, src index.PostingSource, tokenizer *text.Tokenizer, expander *synonyms.SpladeLike, query string) (res []Result, count int, e error) {
+func Search(ctx context.Context, src index.PostingSource, tokenizer *text.Tokenizer, query string, expander ...*synonyms.SpladeLike) (res []Result, count int, e error) {
 	if query == "" {
 		return nil, 0, fmt.Errorf("query must not be empty")
 	}
@@ -27,9 +27,11 @@ func Search(ctx context.Context, src index.PostingSource, tokenizer *text.Tokeni
 	if err != nil {
 		return nil, 0, err
 	}
-	ast, err = expander.ExpandAST(ctx, ast, query)
-	if err != nil {
-		return nil, 0, err
+	if len(expander) > 0 {
+		ast, err = expander[0].ExpandAST(ctx, ast, query)
+		if err != nil {
+			return nil, 0, err
+		}
 	}
 
 	results, err := ast.Eval(src)
