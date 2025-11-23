@@ -150,9 +150,6 @@ func main() {
 	for i := len(cleanup) - 1; i >= 0; i-- {
 		defer cleanup[i]()
 	}
-	indexStart := time.Now()
-	inverted := index.Build(dataset.Documents, tokenizer)
-	fmt.Printf("Inverted Index created with %d unique tokens in %s.\n", inverted.TokenCount(), time.Since(indexStart).Round(time.Millisecond))
 
 	synonymExpander, err := synonyms.NewSpladeLike()
 	if err != nil {
