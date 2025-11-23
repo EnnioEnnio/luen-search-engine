@@ -27,7 +27,7 @@ func Search(ctx context.Context, idx index.InvertedIndex, tokenizer *text.Tokeni
 	if err != nil {
 		return nil, 0, err
 	}
-	ast, err = expander.ExpandAST(ctx, ast)
+	ast, err = expander.ExpandAST(ctx, ast, query)
 	if err != nil {
 		return nil, 0, err
 	}
