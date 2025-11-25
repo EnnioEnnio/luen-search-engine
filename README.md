@@ -72,7 +72,7 @@ go run . -disk=true -disklimit 100000
 ### Command-line flags
 
 - `-data` – Path to the TSV file (default: `data/msmarco-docs-preprocessed.tsv`)
-- `-limit` – Maximum number of documents to load (default: 1000, set to 0 for all)
+- `-limit` – Maximum number of documents to load (default: 10000, set to 0 for all)
 - `-buildindex` – Build the SPIMI-based on-disk index and exit (default: false)
 - `-disk` – Serve queries straight from the persisted index (default: false)
 - `-disklimit` – When `-disk` is enabled, auto-build this many docs if the index is missing (default: 100 k)
@@ -122,7 +122,7 @@ The CLI accepts a small boolean grammar inspired by typical search engines:
 - **Explicit AND / OR**: `cat and dog or bird` matches docs containing both `cat` and `dog`, or any doc containing `bird`.
 - **NOT**: `not` negates the immediately following term or group. Example: `cat and not dog` returns docs containing `cat` but not `dog`. `NOT` cannot stand alone; it must be combined with a positive operand via `and`.
 - **Phrase queries**: wrap tokens in double quotes to search for contiguous sequences, e.g., `"machine learning"` requires exact token order.
-- **Parentheses**: override default precedence (not has the highest precendence, implicit AND has higher precedence than OR). Example: `(cat or dog) and bird` ensures the OR is evaluated before the AND.
+- **Parentheses**: override default precedence (not has the highest precedence, implicit AND has higher precedence than OR). Example: `(cat or dog) and bird` ensures the OR is evaluated before the AND.
 
 ### Search interface
 
