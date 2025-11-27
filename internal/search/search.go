@@ -27,7 +27,8 @@ func Search(ctx context.Context, src index.PostingSource, tokenizer *text.Tokeni
 	if err != nil {
 		return nil, 0, err
 	}
-	if len(expander) > 0 {
+	// an expander is only provided when synonym expansion is enabled explicitly with a flag
+	if expander != nil {
 		ast, err = expander[0].ExpandAST(ctx, ast, query)
 		if err != nil {
 			return nil, 0, err
