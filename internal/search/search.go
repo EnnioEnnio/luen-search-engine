@@ -1,12 +1,14 @@
 package search
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
 	"luen-search-engine/internal/index"
 	"luen-search-engine/internal/model"
 	"luen-search-engine/internal/processing"
+	"luen-search-engine/internal/synonyms"
 	"luen-search-engine/internal/text"
 )
 
@@ -16,7 +18,7 @@ type Match = model.Match
 type Result = model.Result
 
 // Search finds documents that contain all query tokens and orders them by frequency.
-func Search(src index.PostingSource, tokenizer *text.Tokenizer, query string) (res []Result, count int, e error) {
+func Search(ctx context.Context, src index.PostingSource, tokenizer *text.Tokenizer, query string, expander ...*synonyms.SpladeLike) (res []Result, count int, e error) {
 	if query == "" {
 		return nil, 0, fmt.Errorf("query must not be empty")
 	}
@@ -24,6 +26,13 @@ func Search(src index.PostingSource, tokenizer *text.Tokenizer, query string) (r
 	ast, err := processing.Parse(query, tokenizer)
 	if err != nil {
 		return nil, 0, err
+	}
+	// an expander is only provided when synonym expansion is enabled explicitly with a flag
+	if expander != nil {
+		ast, err = expander[0].ExpandAST(ctx, ast, query)
+		if err != nil {
+			return nil, 0, err
+		}
 	}
 
 	results, err := ast.Eval(src)

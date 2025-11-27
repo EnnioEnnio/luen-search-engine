@@ -45,3 +45,6 @@ go.work.sum
 # Excluding Benchmark files 
 *.pprof
 *.svg
+
+# Excluding bert model
+/models/*

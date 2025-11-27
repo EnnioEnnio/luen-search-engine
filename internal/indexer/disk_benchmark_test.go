@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"context"
 	"os"
 	"sync"
 	"testing"
@@ -85,7 +86,7 @@ func BenchmarkDiskQueryServing(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, query := range queries {
-			results, _, err := search.Search(store, tokenizer, query)
+			results, _, err := search.Search(context.Background(), store, tokenizer, query)
 			if err != nil {
 				b.Fatalf("search query %q: %v", query, err)
 			}
