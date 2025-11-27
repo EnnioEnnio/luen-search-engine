@@ -47,7 +47,7 @@ func (s *SpladeLike) PredictSynonyms(ctx context.Context, fullQuery string, term
 	}
 	synonyms := make([]string, 0)
 	for _, w := range resp.Tokens[0].Words {
-		if strings.EqualFold(w, term) {
+		if strings.Contains(fullQuery, w) {
 			continue
 		}
 		synonyms = append(synonyms, w)
