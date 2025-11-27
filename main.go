@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/signal"
 	"runtime"
 	"runtime/pprof"
 	"strings"
@@ -45,6 +46,8 @@ func writeMemProfile(path string) {
 }
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
 
 	// Argparse and profiler setup
 	dataPath := flag.String("data", "data/msmarco-docs-preprocessed.tsv", "Path to the MS MARCO TSV file")
@@ -187,7 +190,6 @@ func main() {
 		}
 
 		searchStart := time.Now()
-		ctx := context.Background()
 		var (
 			results []search.Result
 			total   int
