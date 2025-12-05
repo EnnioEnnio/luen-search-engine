@@ -41,6 +41,7 @@ func PrintResults(results []search.Result, lookup data.DocumentLookup, total int
 			fmt.Printf("       %s count: %d\n", match.Token, match.Frequency)
 		}
 		fmt.Printf("    📏 Document length: %d\n", DocLengths[result.DocID])
+		fmt.Printf("    ⭐ BM25 Score: %.4f\n", result.BM25Score)
 
 		if i < len(results)-1 {
 			fmt.Printf("%s%s%s\n", colorYellow, strings.Repeat("─", 80), colorReset)

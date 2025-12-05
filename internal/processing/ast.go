@@ -27,6 +27,7 @@ const (
 type Node interface {
 	Type() NodeType
 	Eval(src index.PostingSource) ([]Result, error)
+	GetPositiveTokens() []Token
 }
 
 // TermNode matches a single normalized token.
@@ -55,6 +56,34 @@ type NotNode struct {
 }
 
 func (n *TermNode) Type() NodeType { return tTermNode }
+
+func (n *TermNode) GetPositiveTokens() []Token {
+	return []Token{n.Token}
+}
+
+func (n *PhraseNode) GetPositiveTokens() []Token {
+	return n.Tokens
+}
+
+func (a *AndNode) GetPositiveTokens() []Token {
+	tokens := make([]Token, 0)
+	for _, child := range a.Children {
+		tokens = append(tokens, child.GetPositiveTokens()...)
+	}
+	return tokens
+}
+
+func (o *OrNode) GetPositiveTokens() []Token {
+	tokens := make([]Token, 0)
+	for _, child := range o.Children {
+		tokens = append(tokens, child.GetPositiveTokens()...)
+	}
+	return tokens
+}
+
+func (n *NotNode) GetPositiveTokens() []Token {
+	return nil
+}
 
 // Eval returns postings for the term via the provided posting source.
 func (n *TermNode) Eval(src index.PostingSource) ([]Result, error) {

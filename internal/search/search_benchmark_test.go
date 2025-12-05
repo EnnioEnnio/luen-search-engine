@@ -13,10 +13,11 @@ import (
 )
 
 var (
-	inMemoryQueryOnce sync.Once
-	inMemorySource    *processing.MemorySource
-	inMemoryDocs      int
-	inMemoryTokens    int
+	inMemoryQueryOnce  sync.Once
+	inMemorySource     *processing.MemorySource
+	inMemoryDocs       int
+	inMemoryTokens     int
+	inMemoryDocLengths map[uint32]uint32
 )
 
 func BenchmarkSearchWorkload(b *testing.B) {
@@ -27,6 +28,7 @@ func BenchmarkSearchWorkload(b *testing.B) {
 		inMemorySource = processing.NewMemorySource(buildResult.Index)
 		inMemoryDocs = len(dataset.Documents)
 		inMemoryTokens = buildResult.Index.TokenCount()
+		inMemoryDocLengths = buildResult.DocLengths
 	})
 	if inMemorySource == nil {
 		b.Fatal("failed to prepare in-memory posting source")
@@ -43,7 +45,7 @@ func BenchmarkSearchWorkload(b *testing.B) {
 	source := inMemorySource
 	for i := 0; i < b.N; i++ {
 		for _, query := range queries {
-			if _, _, err := Search(context.Background(), source, tokenizer, query); err != nil {
+			if _, _, err := Search(context.Background(), source, tokenizer, query, inMemoryDocLengths); err != nil {
 				b.Fatalf("search query %q returned error: %v", query, err)
 			}
 		}

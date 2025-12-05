@@ -198,9 +198,9 @@ func main() {
 			total   int
 		)
 		if *enableSynonyms && synonymExpander != nil {
-			results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm, synonymExpander)
+			results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm, docLengths, synonymExpander)
 		} else {
-			results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm)
+			results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm, docLengths)
 		}
 		searchTime := time.Since(searchStart)
 		if err != nil {
