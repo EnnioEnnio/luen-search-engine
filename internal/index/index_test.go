@@ -22,13 +22,13 @@ func TestBuildCreatesPostingLists(t *testing.T) {
 	}
 
 	tokenizer := text.NewTokenizer()
-	idx := Build(docs, tokenizer)
+	buildResult := Build(docs, tokenizer)
 
-	if got := idx.TokenCount(); got == 0 {
+	if got := buildResult.Index.TokenCount(); got == 0 {
 		t.Fatalf("expected tokens to be indexed")
 	}
 
-	searchPosting, ok := idx["search"]
+	searchPosting, ok := buildResult.Index["search"]
 	if !ok {
 		t.Fatalf("expected posting list for token 'search'")
 	}
@@ -42,7 +42,7 @@ func TestBuildCreatesPostingLists(t *testing.T) {
 		t.Fatalf("expected 456 frequency 1 for 'search', got %d", len(got))
 	}
 
-	enginePosting, ok := idx["engine"]
+	enginePosting, ok := buildResult.Index["engine"]
 	if !ok {
 		t.Fatalf("expected posting list for token 'engine'")
 	}

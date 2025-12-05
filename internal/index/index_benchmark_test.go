@@ -22,11 +22,11 @@ func BenchmarkBuildMSMarco100k(b *testing.B) {
 
 	var lastTokenCount int
 	for i := 0; i < b.N; i++ {
-		idx := Build(docs, tokenizer)
-		if idx.TokenCount() == 0 {
+		buildResult := Build(docs, tokenizer)
+		if buildResult.Index.TokenCount() == 0 {
 			b.Fatal("unexpected empty index")
 		}
-		lastTokenCount = idx.TokenCount()
+		lastTokenCount = buildResult.Index.TokenCount()
 	}
 	b.StopTimer()
 

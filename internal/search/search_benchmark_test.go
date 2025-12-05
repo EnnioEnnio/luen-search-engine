@@ -23,10 +23,10 @@ func BenchmarkSearchWorkload(b *testing.B) {
 	dataset := benchutil.LoadDataset(b)
 	tokenizer := text.NewTokenizer()
 	inMemoryQueryOnce.Do(func() {
-		idx := index.Build(dataset.Documents, tokenizer)
-		inMemorySource = processing.NewMemorySource(idx)
+		buildResult := index.Build(dataset.Documents, tokenizer)
+		inMemorySource = processing.NewMemorySource(buildResult.Index)
 		inMemoryDocs = len(dataset.Documents)
-		inMemoryTokens = idx.TokenCount()
+		inMemoryTokens = buildResult.Index.TokenCount()
 	})
 	if inMemorySource == nil {
 		b.Fatal("failed to prepare in-memory posting source")

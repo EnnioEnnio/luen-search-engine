@@ -19,6 +19,7 @@ import (
 	"luen-search-engine/internal/index"
 	"luen-search-engine/internal/index/disk"
 	"luen-search-engine/internal/indexer"
+	"luen-search-engine/internal/model"
 	"luen-search-engine/internal/output"
 	"luen-search-engine/internal/processing"
 	"luen-search-engine/internal/search"
@@ -106,6 +107,7 @@ func main() {
 
 	var (
 		postingSource index.PostingSource
+		docLengths    map[model.DocID]model.DocLength
 		docLookup     data.DocumentLookup
 		cleanup       []func()
 	)
@@ -145,10 +147,11 @@ func main() {
 		fmt.Printf("Data loaded with %d documents in %s.\n", dataset.Size(), time.Since(loadStart).Round(time.Millisecond))
 
 		indexStart := time.Now()
-		inverted := index.Build(dataset.Documents, tokenizer)
-		fmt.Printf("Inverted Index created in Memory with %d unique tokens in %s.\n", inverted.TokenCount(), time.Since(indexStart).Round(time.Millisecond))
-		postingSource = processing.NewMemorySource(inverted)
+		buildResult := index.Build(dataset.Documents, tokenizer)
+		fmt.Printf("Inverted Index created in Memory with %d unique tokens in %s.\n", buildResult.Index.TokenCount(), time.Since(indexStart).Round(time.Millisecond))
+		postingSource = processing.NewMemorySource(buildResult.Index)
 		docLookup = dataset
+		docLengths = buildResult.DocLengths
 	}
 
 	for i := len(cleanup) - 1; i >= 0; i-- {
@@ -205,7 +208,7 @@ func main() {
 			continue
 		}
 
-		output.PrintResults(results, docLookup, total, searchTime)
+		output.PrintResults(results, docLookup, total, searchTime, docLengths)
 	}
 }
 

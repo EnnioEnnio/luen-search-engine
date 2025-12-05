@@ -19,3 +19,6 @@ type Result struct {
 	TotalTermFrequency int // used for ranking only
 	Matches            []Match
 }
+
+// Document length stores the number of tokens in the document.
+type DocLength = uint32

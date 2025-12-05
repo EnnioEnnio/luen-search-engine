@@ -33,9 +33,9 @@ func TestSearchSingleTermRanksByFrequency(t *testing.T) {
 	}
 
 	tokenizer := text.NewTokenizer()
-	idx := index.Build(docs, tokenizer)
+	buildResult := index.Build(docs, tokenizer)
 
-	results, total, err := Search(context.Background(), processing.NewMemorySource(idx), tokenizer, "search engine")
+	results, total, err := Search(context.Background(), processing.NewMemorySource(buildResult.Index), tokenizer, "search engine")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -64,9 +64,9 @@ func TestSearchMissingTokenReturnsNil(t *testing.T) {
 	}
 
 	tokenizer := text.NewTokenizer()
-	idx := index.Build(docs, tokenizer)
+	buildResult := index.Build(docs, tokenizer)
 
-	results, total, err := Search(context.Background(), processing.NewMemorySource(idx), tokenizer, "missing token")
+	results, total, err := Search(context.Background(), processing.NewMemorySource(buildResult.Index), tokenizer, "missing token")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -89,9 +89,9 @@ func TestSearchLimitsToTopTenResults(t *testing.T) {
 	}
 
 	tokenizer := text.NewTokenizer()
-	idx := index.Build(docs, tokenizer)
+	buildResult := index.Build(docs, tokenizer)
 
-	results, total, err := Search(context.Background(), processing.NewMemorySource(idx), tokenizer, "term")
+	results, total, err := Search(context.Background(), processing.NewMemorySource(buildResult.Index), tokenizer, "term")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -111,9 +111,9 @@ func TestSearchWithNotOperator(t *testing.T) {
 	}
 
 	tokenizer := text.NewTokenizer()
-	idx := index.Build(docs, tokenizer)
+	buildResult := index.Build(docs, tokenizer)
 
-	results, total, err := Search(context.Background(), processing.NewMemorySource(idx), tokenizer, "cat and not dog")
+	results, total, err := Search(context.Background(), processing.NewMemorySource(buildResult.Index), tokenizer, "cat and not dog")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -139,9 +139,9 @@ func TestSearchOrPrecedence(t *testing.T) {
 	}
 
 	tokenizer := text.NewTokenizer()
-	idx := index.Build(docs, tokenizer)
+	buildResult := index.Build(docs, tokenizer)
 
-	results, total, err := Search(context.Background(), processing.NewMemorySource(idx), tokenizer, "cat and dog or bird")
+	results, total, err := Search(context.Background(), processing.NewMemorySource(buildResult.Index), tokenizer, "cat and dog or bird")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -168,9 +168,9 @@ func TestSearchParenthesesOverridePrecedence(t *testing.T) {
 	}
 
 	tokenizer := text.NewTokenizer()
-	idx := index.Build(docs, tokenizer)
+	buildResult := index.Build(docs, tokenizer)
 
-	results, total, err := Search(context.Background(), processing.NewMemorySource(idx), tokenizer, "(cat or dog) and bird")
+	results, total, err := Search(context.Background(), processing.NewMemorySource(buildResult.Index), tokenizer, "(cat or dog) and bird")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -193,9 +193,9 @@ func TestSearchPhraseQueryMatchesContiguousTokens(t *testing.T) {
 	}
 
 	tokenizer := text.NewTokenizer()
-	idx := index.Build(docs, tokenizer)
+	buildResult := index.Build(docs, tokenizer)
 
-	results, total, err := Search(context.Background(), processing.NewMemorySource(idx), tokenizer, "\"quick brown\"")
+	results, total, err := Search(context.Background(), processing.NewMemorySource(buildResult.Index), tokenizer, "\"quick brown\"")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -233,9 +233,9 @@ func TestSearchOnlyNegationsReturnError(t *testing.T) {
 	}
 
 	tokenizer := text.NewTokenizer()
-	idx := index.Build(docs, tokenizer)
+	buildResult := index.Build(docs, tokenizer)
 
-	_, _, err := Search(context.Background(), processing.NewMemorySource(idx), tokenizer, "not cat")
+	_, _, err := Search(context.Background(), processing.NewMemorySource(buildResult.Index), tokenizer, "not cat")
 	if err == nil {
 		t.Fatal("expected error for negation-only query, got nil")
 	}
