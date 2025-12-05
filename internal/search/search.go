@@ -37,15 +37,11 @@ func Search(ctx context.Context, src index.PostingSource, tokenizer *text.Tokeni
 		}
 	}
 
-	results, err := ast.Eval(src)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	// calculate BM25 scores
+	// prepare BM25 calculation
 	DocumentFrequencies := make(map[Token]int)
 	tokens := ast.GetPositiveTokens()
 	for _, token := range tokens {
+		// TODO: it would be more efficient to only call a function that returns the document frequency instead of the full posting list
 		posting, err := src.Lookup(token)
 		if err != nil || posting == nil {
 			return nil, 0, fmt.Errorf("get posting list for token %q: %w", token, err)
@@ -56,11 +52,31 @@ func Search(ctx context.Context, src index.PostingSource, tokenizer *text.Tokeni
 	avgDocLength := index.CalculateAvgDocLength(docLengths)
 	documentCount := len(docLengths)
 
+	highIDFTokens := make(map[Token]bool)
+	threshold := 1.5
+	for _, token := range tokens {
+		idf := ranking.CalculateIDF(documentCount, DocumentFrequencies[token])
+		if idf > threshold {
+			highIDFTokens[token] = true
+		}
+	}
+	ast = ast.Prune(highIDFTokens)
+
+	if ast == nil {
+		return nil, 0, nil
+	}
+
+	results, err := ast.Eval(src)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// calculate BM25 scores
 	for i, result := range results {
 		bm25Score := 0.0
 		for _, match := range result.Matches {
 
-			bm25Score += ranking.BM25Score(match.Frequency, docLengths[result.DocID], avgDocLength, DocumentFrequencies[match.Token], documentCount)
+			bm25Score += ranking.CalculateBM25Score(match.Frequency, docLengths[result.DocID], avgDocLength, DocumentFrequencies[match.Token], documentCount)
 		}
 		results[i].BM25Score = bm25Score
 	}
