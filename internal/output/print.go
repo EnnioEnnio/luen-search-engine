@@ -16,7 +16,7 @@ const (
 )
 
 // PrintResults pretty-prints a list of results together with document metadata.
-func PrintResults(results []search.Result, lookup data.DocumentLookup, total int, searchTime time.Duration) {
+func PrintResults(results []search.Result, lookup *data.DocumentStore, total int, searchTime time.Duration) {
 	if total == 0 {
 		fmt.Println("No results found. Try another search term :)")
 		return
