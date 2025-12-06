@@ -3,7 +3,7 @@ package processing
 import (
 	"fmt"
 
-	"luen-search-engine/internal/index"
+	"luen-search-engine/internal/index/disk"
 	"luen-search-engine/internal/model"
 )
 
@@ -26,7 +26,7 @@ const (
 // Node represents a query AST element that can evaluate itself against the index.
 type Node interface {
 	Type() NodeType
-	Eval(src index.PostingSource) ([]Result, error)
+	Eval(src *disk.PostingStore) ([]Result, error)
 }
 
 // TermNode matches a single normalized token.
@@ -57,7 +57,7 @@ type NotNode struct {
 func (n *TermNode) Type() NodeType { return tTermNode }
 
 // Eval returns postings for the term via the provided posting source.
-func (n *TermNode) Eval(src index.PostingSource) ([]Result, error) {
+func (n *TermNode) Eval(src *disk.PostingStore) ([]Result, error) {
 	if n == nil || n.Token == "" {
 		return nil, nil
 	}
@@ -88,7 +88,7 @@ func (n *TermNode) Eval(src index.PostingSource) ([]Result, error) {
 func (n *PhraseNode) Type() NodeType { return tPhraseNode }
 
 // Eval performs a positional merge to find contiguous matches for the phrase.
-func (n *PhraseNode) Eval(src index.PostingSource) ([]Result, error) {
+func (n *PhraseNode) Eval(src *disk.PostingStore) ([]Result, error) {
 	if len(n.Tokens) == 0 {
 		return nil, nil
 	}
@@ -161,7 +161,7 @@ func (n *PhraseNode) Eval(src index.PostingSource) ([]Result, error) {
 func (a *AndNode) Type() NodeType { return tAndNode }
 
 // Eval intersects child results and subtracts explicit negations.
-func (a *AndNode) Eval(src index.PostingSource) ([]Result, error) {
+func (a *AndNode) Eval(src *disk.PostingStore) ([]Result, error) {
 	if len(a.Children) == 0 {
 		return nil, nil
 	}
@@ -219,7 +219,7 @@ func (a *AndNode) Eval(src index.PostingSource) ([]Result, error) {
 func (o *OrNode) Type() NodeType { return tOrNode }
 
 // Eval unions child results, summing frequencies per document.
-func (o *OrNode) Eval(src index.PostingSource) ([]Result, error) {
+func (o *OrNode) Eval(src *disk.PostingStore) ([]Result, error) {
 	if len(o.Children) == 0 {
 		return nil, nil
 	}
@@ -258,12 +258,12 @@ func (o *OrNode) Eval(src index.PostingSource) ([]Result, error) {
 func (n *NotNode) Type() NodeType { return tNotNode }
 
 // Eval always errors—NOT must be combined with a positive operand via AndNode.
-func (n *NotNode) Eval(src index.PostingSource) ([]Result, error) {
+func (n *NotNode) Eval(src *disk.PostingStore) ([]Result, error) {
 	return nil, fmt.Errorf("NOT expressions must be combined with a positive search term")
 }
 
 // evalNegated returns the child results for exclusion handling.
-func (n *NotNode) evalNegated(src index.PostingSource) ([]Result, error) {
+func (n *NotNode) evalNegated(src *disk.PostingStore) ([]Result, error) {
 	if n == nil || n.Child == nil {
 		return nil, fmt.Errorf("negation is missing an operand")
 	}
