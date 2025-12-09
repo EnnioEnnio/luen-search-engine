@@ -7,8 +7,6 @@ type MemorySource struct {
 	idx index.InvertedIndex
 }
 
-var _ index.PostingSource = (*MemorySource)(nil)
-
 // NewMemorySource returns a PostingSource backed by the provided inverted index.
 func NewMemorySource(idx index.InvertedIndex) *MemorySource {
 	return &MemorySource{idx: idx}

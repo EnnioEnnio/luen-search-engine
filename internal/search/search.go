@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"luen-search-engine/internal/index"
+	"luen-search-engine/internal/index/disk"
 	"luen-search-engine/internal/model"
 	"luen-search-engine/internal/processing"
 	"luen-search-engine/internal/synonyms"
@@ -18,7 +18,7 @@ type Match = model.Match
 type Result = model.Result
 
 // Search finds documents that contain all query tokens and orders them by frequency.
-func Search(ctx context.Context, src index.PostingSource, tokenizer *text.Tokenizer, query string, expander ...*synonyms.SpladeLike) (res []Result, count int, e error) {
+func Search(ctx context.Context, src *disk.PostingStore, tokenizer *text.Tokenizer, query string, expander ...*synonyms.SpladeLike) (res []Result, count int, e error) {
 	if query == "" {
 		return nil, 0, fmt.Errorf("query must not be empty")
 	}

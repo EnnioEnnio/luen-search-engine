@@ -16,11 +16,9 @@ import (
 	"time"
 
 	"luen-search-engine/internal/data"
-	"luen-search-engine/internal/index"
 	"luen-search-engine/internal/index/disk"
 	"luen-search-engine/internal/indexer"
 	"luen-search-engine/internal/output"
-	"luen-search-engine/internal/processing"
 	"luen-search-engine/internal/search"
 	"luen-search-engine/internal/synonyms"
 	"luen-search-engine/internal/text"
@@ -53,11 +51,10 @@ func main() {
 	dataPath := flag.String("data", "data/msmarco-docs-preprocessed.tsv", "Path to the MS MARCO TSV file")
 	limit := flag.Int("limit", 10000, "Maximum number of documents to load (0 means all)")
 	buildIndex := flag.Bool("buildindex", false, "Build the on-disk index and exit")
-	serveDisk := flag.Bool("disk", false, "Serve queries using the on-disk index")
 	diskLimit := flag.Int("disklimit", 100000, "Number of documents to index when automatically preparing the disk-backed serving layer")
 	indexDir := flag.String("indexdir", "index", "Directory to store the on-disk index")
 	batchBytes := flag.Int64("indexbatch", 64*1024*1024, "Approximate batch size in bytes for external indexing")
-	diskCache := flag.Int("diskcache", 2048, "Number of posting lists to cache when serving from disk")
+	diskCache := flag.Int("diskcache", 2048, "Number of posting lists to cache")
 	cpuprofile := flag.String("cpuprofile", "", "Write CPU profile to file")
 	memprofile := flag.String("memprofile", "", "Write memory profile to file")
 	enableSynonyms := flag.Bool("enableSynonyms", false, "Enable synonym expansion using the SPLADE-like model")
@@ -104,57 +101,38 @@ func main() {
 		return
 	}
 
-	var (
-		postingSource index.PostingSource
-		docLookup     data.DocumentLookup
-		cleanup       []func()
-	)
+	var cleanup []func()
 
-	if *serveDisk {
-		loadStart := time.Now()
-		if err := ensureDiskIndex(*indexDir, *dataPath, *diskLimit, tokenizer, *batchBytes); err != nil {
-			log.Fatalf("failed to prepare on-disk index: %v", err)
-		}
-		dict, err := disk.LoadDictionary(indexer.DictionaryPath(*indexDir))
-		if err != nil {
-			log.Fatalf("failed to load dictionary: %v", err)
-		}
-		store, err := disk.NewPostingStore(dict, indexer.PostingsPath(*indexDir), *diskCache)
-		if err != nil {
-			log.Fatalf("failed to open postings: %v", err)
-		}
-		cleanup = append(cleanup, func() {
-			_ = store.Close()
-		})
-		docs, err := data.OpenDocumentStore(*indexDir)
-		if err != nil {
-			log.Fatalf("failed to open document store: %v", err)
-		}
-		cleanup = append(cleanup, func() {
-			_ = docs.Close()
-		})
-		postingSource = store
-		docLookup = docs
-		fmt.Printf("Loaded dictionary with %d tokens from %s in %s.\n", dict.Size(), *indexDir, time.Since(loadStart).Round(time.Millisecond))
-	} else {
-		loadStart := time.Now()
-		dataset, err := data.Load(*dataPath, *limit)
-		if err != nil {
-			log.Fatalf("failed to load data: %v", err)
-		}
-		fmt.Printf("Data loaded with %d documents in %s.\n", dataset.Size(), time.Since(loadStart).Round(time.Millisecond))
-
-		indexStart := time.Now()
-		inverted := index.Build(dataset.Documents, tokenizer)
-		fmt.Printf("Inverted Index created in Memory with %d unique tokens in %s.\n", inverted.TokenCount(), time.Since(indexStart).Round(time.Millisecond))
-		postingSource = processing.NewMemorySource(inverted)
-		docLookup = dataset
+	loadStart := time.Now()
+	if err := ensureDiskIndex(*indexDir, *dataPath, *diskLimit, tokenizer, *batchBytes); err != nil {
+		log.Fatalf("failed to prepare on-disk index: %v", err)
 	}
+	dict, err := disk.LoadDictionary(indexer.DictionaryPath(*indexDir))
+	if err != nil {
+		log.Fatalf("failed to load dictionary: %v", err)
+	}
+	postingSource, err := disk.NewPostingStore(dict, indexer.PostingsPath(*indexDir), *diskCache)
+	if err != nil {
+		log.Fatalf("failed to open postings: %v", err)
+	}
+	cleanup = append(cleanup, func() {
+		_ = postingSource.Close()
+	})
+	docLookup, err := data.OpenDocumentStore(*indexDir)
+	if err != nil {
+		log.Fatalf("failed to open document store: %v", err)
+	}
+	cleanup = append(cleanup, func() {
+		_ = docLookup.Close()
+	})
+	fmt.Printf("Loaded dictionary with %d tokens from %s in %s.\n", dict.Size(), *indexDir, time.Since(loadStart).Round(time.Millisecond))
 
 	for i := len(cleanup) - 1; i >= 0; i-- {
 		defer cleanup[i]()
 	}
+
 	var synonymExpander *synonyms.SpladeLike
+
 	if *enableSynonyms {
 		se, err := synonyms.NewSpladeLike()
 		if err != nil {

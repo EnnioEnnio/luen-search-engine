@@ -136,8 +136,6 @@ type DocumentStore struct {
 	mu    sync.Mutex
 }
 
-var _ DocumentLookup = (*DocumentStore)(nil)
-
 // OpenDocumentStore loads the on-disk index metadata and prepares for lookups.
 func OpenDocumentStore(dir string) (*DocumentStore, error) {
 	idxPath := filepath.Join(dir, docStoreIndexFile)

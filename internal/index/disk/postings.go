@@ -21,8 +21,6 @@ type PostingStore struct {
 	mu    sync.Mutex
 }
 
-var _ index.PostingSource = (*PostingStore)(nil)
-
 // NewPostingStore opens postings.bin and prepares a cache of the given size.
 func NewPostingStore(dict *Dictionary, path string, cacheSize int) (*PostingStore, error) {
 	if dict == nil {
