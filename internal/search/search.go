@@ -46,26 +46,33 @@ func Search(ctx context.Context, src *disk.PostingStore, tokenizer *text.Tokeniz
 	for _, token := range tokens {
 		// TODO: it would be more efficient to only call a function that returns the document frequency instead of the full posting list
 		posting, err := src.Lookup(token)
-		if err != nil || posting == nil {
+		if err != nil {
 			return nil, 0, fmt.Errorf("get posting list for token %q: %w", token, err)
 		}
-		DocumentFrequencies[token] = len(posting.Docs)
+		if posting != nil {
+			DocumentFrequencies[token] = len(posting.Docs)
+		} else {
+			DocumentFrequencies[token] = 0
+		}
 	}
 
 	documentCount := len(docLengths)
 
-	highIDFTokens := make(map[Token]bool)
-	threshold := 1.5
-	for _, token := range tokens {
-		idf := ranking.CalculateIDF(documentCount, DocumentFrequencies[token])
-		if idf > threshold {
-			highIDFTokens[token] = true
+	// IDF-threshold optimization: only prune low-IDF terms for larger document sets
+	if documentCount >= 1000 {
+		highIDFTokens := make(map[Token]bool)
+		threshold := 1.5
+		for _, token := range tokens {
+			idf := ranking.CalculateIDF(documentCount, DocumentFrequencies[token])
+			if idf > threshold {
+				highIDFTokens[token] = true
+			}
 		}
-	}
-	ast = ast.Prune(highIDFTokens)
+		ast = ast.Prune(highIDFTokens)
 
-	if ast == nil {
-		return nil, 0, nil
+		if ast == nil {
+			return nil, 0, nil
+		}
 	}
 
 	results, err := ast.Eval(src)
