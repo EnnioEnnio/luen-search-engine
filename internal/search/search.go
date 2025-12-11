@@ -18,10 +18,10 @@ type DocID = model.DocID
 type Token = model.Token
 type Match = model.Match
 type Result = model.Result
-type DocLength = model.DocLength
+type FieldDocLength = model.FieldDocLengths
 
 // Search finds documents that contain all query tokens and orders them by frequency.
-func Search(ctx context.Context, src *disk.PostingStore, tokenizer *text.Tokenizer, query string, docLengths map[DocID]DocLength, expander ...*synonyms.SpladeLike) (res []Result, count int, e error) {
+func Search(ctx context.Context, src *disk.PostingStore, tokenizer *text.Tokenizer, query string, docLengths map[DocID]FieldDocLength, expander ...*synonyms.SpladeLike) (res []Result, count int, e error) {
 	if query == "" {
 		return nil, 0, fmt.Errorf("query must not be empty")
 	}
@@ -52,7 +52,6 @@ func Search(ctx context.Context, src *disk.PostingStore, tokenizer *text.Tokeniz
 		DocumentFrequencies[token] = len(posting.Docs)
 	}
 
-	avgDocLength := index.CalculateAvgDocLength(docLengths)
 	documentCount := len(docLengths)
 
 	highIDFTokens := make(map[Token]bool)
@@ -74,12 +73,36 @@ func Search(ctx context.Context, src *disk.PostingStore, tokenizer *text.Tokeniz
 		return nil, 0, err
 	}
 
+	// Split positions into title and body for each match
+	for i := range results {
+		for j := range results[i].Matches {
+			match := &results[i].Matches[j]
+			fieldLengths := docLengths[results[i].DocID]
+			titleBoundary := int(fieldLengths.TitleLength)
+
+			for _, pos := range match.Positions {
+				if pos < titleBoundary {
+					match.TF_title++
+				} else {
+					match.TF_body++
+				}
+			}
+		}
+	}
+
+	avgTitleLength, avgBodyLength := index.CalculateAvgFieldLengths(docLengths)
+	documentCount = len(docLengths)
+
 	// calculate BM25 scores
 	for i, result := range results {
 		bm25Score := 0.0
 		for _, match := range result.Matches {
-
-			bm25Score += ranking.CalculateBM25Score(match.Frequency, docLengths[result.DocID], avgDocLength, DocumentFrequencies[match.Token], documentCount)
+			fieldLengths := docLengths[result.DocID]
+			bm25Score += ranking.CalculateFieldedBM25Score(
+				match.TF_title, match.TF_body,
+				fieldLengths.TitleLength, fieldLengths.BodyLength,
+				avgTitleLength, avgBodyLength,
+				DocumentFrequencies[match.Token], documentCount)
 		}
 		results[i].BM25Score = bm25Score
 	}

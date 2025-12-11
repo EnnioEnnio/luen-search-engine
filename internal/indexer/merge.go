@@ -63,7 +63,7 @@ func mergePartials(paths []string, outputDir string, keepPartials bool) (int, er
 	defer dictWriter.Close()
 
 	// Collect document lengths from all partials
-	mergedDocLengths := make(map[model.DocID]model.DocLength)
+	mergedDocLengths := make(map[model.DocID]model.FieldDocLengths)
 
 	h := make(postingHeap, 0, len(paths))
 	readers := make([]*partialReader, 0, len(paths))
@@ -276,7 +276,7 @@ func writePosting(file *os.File, posting diskPosting) (int64, int64, error) {
 const docLengthFileName = "doclengths.bin"
 
 // writeDocLengths persists the document length map to a binary file.
-func writeDocLengths(dir string, docLengths map[model.DocID]model.DocLength) error {
+func writeDocLengths(dir string, docLengths map[model.DocID]model.FieldDocLengths) error {
 	path := filepath.Join(dir, docLengthFileName)
 	file, err := os.Create(path)
 	if err != nil {
@@ -304,8 +304,11 @@ func writeDocLengths(dir string, docLengths map[model.DocID]model.DocLength) err
 		if err := binary.Write(writer, binary.LittleEndian, docID); err != nil {
 			return fmt.Errorf("write docID: %w", err)
 		}
-		if err := binary.Write(writer, binary.LittleEndian, uint32(docLengths[docID])); err != nil {
-			return fmt.Errorf("write length: %w", err)
+		if err := binary.Write(writer, binary.LittleEndian, docLengths[docID].TitleLength); err != nil {
+			return fmt.Errorf("write title length: %w", err)
+		}
+		if err := binary.Write(writer, binary.LittleEndian, docLengths[docID].BodyLength); err != nil {
+			return fmt.Errorf("write body length: %w", err)
 		}
 	}
 

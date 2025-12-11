@@ -11,13 +11,14 @@ import (
 	"luen-search-engine/internal/index"
 	"luen-search-engine/internal/index/disk"
 	"luen-search-engine/internal/indexer"
+	"luen-search-engine/internal/model"
 	"luen-search-engine/internal/text"
 )
 
 var (
 	testPostingStore *disk.PostingStore
 	testTokenizer    *text.Tokenizer
-	testDocLengths   map[uint32]uint32
+	testDocLengths   map[model.DocID]model.FieldDocLengths
 )
 
 func TestMain(m *testing.M) {

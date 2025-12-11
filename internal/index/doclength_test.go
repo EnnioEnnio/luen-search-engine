@@ -2,6 +2,8 @@ package index
 
 import (
 	"testing"
+
+	"luen-search-engine/internal/model"
 )
 
 func TestLoadDocLengths(t *testing.T) {
@@ -16,10 +18,10 @@ func TestLoadDocLengths(t *testing.T) {
 }
 
 func TestCalculateAvgDocLength(t *testing.T) {
-	docLengths := map[DocID]DocLength{
-		1: 100,
-		2: 200,
-		3: 300,
+	docLengths := map[model.DocID]model.FieldDocLengths{
+		1: {TitleLength: 10, BodyLength: 90},
+		2: {TitleLength: 20, BodyLength: 180},
+		3: {TitleLength: 30, BodyLength: 270},
 	}
 
 	avg := CalculateAvgDocLength(docLengths)
@@ -31,10 +33,43 @@ func TestCalculateAvgDocLength(t *testing.T) {
 }
 
 func TestCalculateAvgDocLengthEmpty(t *testing.T) {
-	docLengths := make(map[DocID]DocLength)
+	docLengths := map[model.DocID]model.FieldDocLengths{}
+
 	avg := CalculateAvgDocLength(docLengths)
 
 	if avg != 0 {
 		t.Errorf("CalculateAvgDocLength(empty) = %f, want 0", avg)
+	}
+}
+
+func TestCalculateAvgFieldLengths(t *testing.T) {
+	docLengths := map[model.DocID]model.FieldDocLengths{
+		1: {TitleLength: 10, BodyLength: 90},
+		2: {TitleLength: 20, BodyLength: 180},
+		3: {TitleLength: 30, BodyLength: 270},
+	}
+
+	avgTitle, avgBody := CalculateAvgFieldLengths(docLengths)
+	expectedTitle := 20.0
+	expectedBody := 180.0
+
+	if avgTitle != expectedTitle {
+		t.Errorf("CalculateAvgFieldLengths() title = %f, want %f", avgTitle, expectedTitle)
+	}
+	if avgBody != expectedBody {
+		t.Errorf("CalculateAvgFieldLengths() body = %f, want %f", avgBody, expectedBody)
+	}
+}
+
+func TestCalculateAvgFieldLengthsEmpty(t *testing.T) {
+	docLengths := map[model.DocID]model.FieldDocLengths{}
+
+	avgTitle, avgBody := CalculateAvgFieldLengths(docLengths)
+
+	if avgTitle != 0 {
+		t.Errorf("CalculateAvgFieldLengths(empty) title = %f, want 0", avgTitle)
+	}
+	if avgBody != 0 {
+		t.Errorf("CalculateAvgFieldLengths(empty) body = %f, want 0", avgBody)
 	}
 }

@@ -17,7 +17,7 @@ const (
 )
 
 // PrintResults pretty-prints a list of results together with document metadata.
-func PrintResults(results []search.Result, lookup *data.DocumentStore, total int, searchTime time.Duration, DocLengths map[model.DocID]model.DocLength) {
+func PrintResults(results []search.Result, lookup *data.DocumentStore, total int, searchTime time.Duration, DocLengths map[model.DocID]model.FieldDocLengths) {
 	if total == 0 {
 		fmt.Println("No results found. Try another search term :)")
 		return

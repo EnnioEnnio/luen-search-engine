@@ -96,7 +96,7 @@ type partialReader struct {
 	decoder    *gob.Decoder
 	current    *diskPosting
 	done       bool
-	docLengths map[model.DocID]model.DocLength
+	docLengths map[model.DocID]model.FieldDocLengths
 }
 
 // newPartialReader opens a gob-encoded partial index for streaming.
@@ -116,7 +116,7 @@ func newPartialReader(path string, id int) (*partialReader, error) {
 	docLengthPath := path + ".doclengths"
 	if docLengthFile, err := os.Open(docLengthPath); err == nil {
 		defer docLengthFile.Close()
-		var docLengths map[model.DocID]model.DocLength
+		var docLengths map[model.DocID]model.FieldDocLengths
 		decoder := gob.NewDecoder(docLengthFile)
 		if err := decoder.Decode(&docLengths); err == nil {
 			reader.docLengths = docLengths
