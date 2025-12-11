@@ -2,6 +2,15 @@ package ranking
 
 import "math"
 
+// calculateBM25Term computes the BM25 term component (without IDF).
+func calculateBM25Term(termFreq int, docLength uint32, avgDocLength float64, k1, b float64) float64 {
+	if termFreq == 0 || avgDocLength == 0 {
+		return 0
+	}
+	return (float64(termFreq) * (k1 + 1)) /
+		(float64(termFreq) + k1*(1-b+(b*float64(docLength))/(avgDocLength)))
+}
+
 // CalculateFieldedBM25Score computes BM25 with separate scoring for title and body fields.
 // titleTF and bodyTF are the term frequencies in title and body respectively.
 // titleLength and bodyLength are the field lengths for the specific document.
@@ -14,22 +23,25 @@ func CalculateFieldedBM25Score(titleTF, bodyTF int, titleLength, bodyLength uint
 
 	idf := CalculateIDF(totalDocs, docFreq)
 
-	// BM25 for title field
-	var titleScore float64
-	if titleTF > 0 && avgTitleLength > 0 {
-		titleScore = (float64(titleTF) * (k1 + 1)) /
-			(float64(titleTF) + k1*(1-b+(b*float64(titleLength))/avgTitleLength))
+	// Field-normalized term frequencies
+	var normalizedTitleTF float64
+	if avgTitleLength > 0 {
+		normalizedTitleTF = float64(titleTF) / (1 - b + b*(float64(titleLength)/avgTitleLength))
 	}
 
-	// BM25 for body field
-	var bodyScore float64
-	if bodyTF > 0 && avgBodyLength > 0 {
-		bodyScore = (float64(bodyTF) * (k1 + 1)) /
-			(float64(bodyTF) + k1*(1-b+(b*float64(bodyLength))/avgBodyLength))
+	var normalizedBodyTF float64
+	if avgBodyLength > 0 {
+		normalizedBodyTF = float64(bodyTF) / (1 - b + b*(float64(bodyLength)/avgBodyLength))
 	}
 
-	// Combine with boost factors
-	return idf * (boostTitle*titleScore + boostBody*bodyScore)
+	// Combined field-normalized TF with boost factors
+	combinedTF := boostTitle*normalizedTitleTF + boostBody*normalizedBodyTF
+
+	// Apply BM25 transformation to combined TF
+	if combinedTF == 0 {
+		return 0
+	}
+	return idf * (combinedTF * (k1 + 1)) / (combinedTF + k1)
 }
 
 func CalculateBM25Score(termFreq int, docLength uint32, avgDocLength float64, docFreq int, totalDocs int) float64 {
@@ -37,13 +49,9 @@ func CalculateBM25Score(termFreq int, docLength uint32, avgDocLength float64, do
 	k1 := 1.2
 
 	idf := CalculateIDF(totalDocs, docFreq)
+	bm25Term := calculateBM25Term(termFreq, docLength, avgDocLength, k1, b)
 
-	inner := (float64(termFreq) * (k1 + 1)) /
-		(float64(termFreq) + k1*(1-b+(b*float64(docLength))/(avgDocLength)))
-
-	bm25 := idf * inner
-
-	return bm25
+	return idf * bm25Term
 }
 
 // CalculateIDF computes the inverse document frequency for a term
