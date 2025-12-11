@@ -27,6 +27,8 @@ const (
 type Node interface {
 	Type() NodeType
 	Eval(src *disk.PostingStore) ([]Result, error)
+	GetPositiveTokens() []Token
+	Prune(highIDFTokens map[Token]bool) Node
 }
 
 // TermNode matches a single normalized token.
@@ -55,6 +57,34 @@ type NotNode struct {
 }
 
 func (n *TermNode) Type() NodeType { return tTermNode }
+
+func (n *TermNode) GetPositiveTokens() []Token {
+	return []Token{n.Token}
+}
+
+func (n *PhraseNode) GetPositiveTokens() []Token {
+	return n.Tokens
+}
+
+func (a *AndNode) GetPositiveTokens() []Token {
+	tokens := make([]Token, 0)
+	for _, child := range a.Children {
+		tokens = append(tokens, child.GetPositiveTokens()...)
+	}
+	return tokens
+}
+
+func (o *OrNode) GetPositiveTokens() []Token {
+	tokens := make([]Token, 0)
+	for _, child := range o.Children {
+		tokens = append(tokens, child.GetPositiveTokens()...)
+	}
+	return tokens
+}
+
+func (n *NotNode) GetPositiveTokens() []Token {
+	return nil
+}
 
 // Eval returns postings for the term via the provided posting source.
 func (n *TermNode) Eval(src *disk.PostingStore) ([]Result, error) {
@@ -359,4 +389,71 @@ func (n *PhraseNode) checkPhrasePairs(docList1, docList2 map[DocID]Match) map[Do
 	}
 	return merged
 
+}
+
+func (n *TermNode) Prune(highIDFTokens map[Token]bool) Node {
+	if highIDFTokens[n.Token] {
+		return n
+	}
+	return nil
+}
+
+func (n *PhraseNode) Prune(highIDFTokens map[Token]bool) Node {
+	// for phrase nodes, we keep them as is if at least one token in the phrase is high IDF
+	keep := false
+	for _, token := range n.Tokens {
+		if highIDFTokens[token] {
+			keep = true
+			break
+		}
+	}
+	if !keep {
+		return nil
+	}
+	return n
+}
+
+func (n *AndNode) Prune(highIDFTokens map[Token]bool) Node {
+	newChildren := []Node{}
+	for _, child := range n.Children {
+		pruned := child.Prune(highIDFTokens)
+		if pruned != nil {
+			newChildren = append(newChildren, pruned)
+		}
+	}
+	if len(newChildren) == 0 {
+		return nil
+	}
+	if len(newChildren) == 1 {
+		return newChildren[0]
+	}
+	n.Children = newChildren
+	return n
+}
+
+func (n *OrNode) Prune(highIDFTokens map[Token]bool) Node {
+	newChildren := []Node{}
+	for _, child := range n.Children {
+		pruned := child.Prune(highIDFTokens)
+		if pruned != nil {
+			newChildren = append(newChildren, pruned)
+		}
+	}
+	if len(newChildren) == 0 {
+		return nil
+	}
+	if len(newChildren) == 1 {
+		return newChildren[0]
+	}
+	n.Children = newChildren
+	return n
+}
+
+func (n *NotNode) Prune(highIDFTokens map[Token]bool) Node {
+	pruned := n.Child.Prune(highIDFTokens)
+	if pruned == nil {
+		return nil
+	}
+	n.Child = pruned
+	return n
 }

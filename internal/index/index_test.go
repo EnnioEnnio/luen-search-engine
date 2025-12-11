@@ -22,7 +22,8 @@ func TestBuildCreatesPostingLists(t *testing.T) {
 	}
 
 	tokenizer := text.NewTokenizer()
-	idx := Build(docs, tokenizer)
+	buildResult := Build(docs, tokenizer)
+	idx := buildResult.Index
 
 	if got := idx.TokenCount(); got == 0 {
 		t.Fatalf("expected tokens to be indexed")

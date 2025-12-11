@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"luen-search-engine/internal/data"
+	"luen-search-engine/internal/index"
 	"luen-search-engine/internal/index/disk"
 	"luen-search-engine/internal/indexer"
 	"luen-search-engine/internal/output"
@@ -125,6 +126,10 @@ func main() {
 	cleanup = append(cleanup, func() {
 		_ = docLookup.Close()
 	})
+	docLengths, err := index.LoadDocLengths(*indexDir)
+	if err != nil {
+		log.Fatalf("failed to load document lengths: %v", err)
+	}
 	fmt.Printf("Loaded dictionary with %d tokens from %s in %s.\n", dict.Size(), *indexDir, time.Since(loadStart).Round(time.Millisecond))
 
 	for i := len(cleanup) - 1; i >= 0; i-- {
@@ -173,9 +178,9 @@ func main() {
 			total   int
 		)
 		if *enableSynonyms && synonymExpander != nil {
-			results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm, synonymExpander)
+			results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm, docLengths, synonymExpander)
 		} else {
-			results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm)
+			results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm, docLengths)
 		}
 		searchTime := time.Since(searchStart)
 		if err != nil {
@@ -183,7 +188,7 @@ func main() {
 			continue
 		}
 
-		output.PrintResults(results, docLookup, total, searchTime)
+		output.PrintResults(results, docLookup, total, searchTime, docLengths)
 	}
 }
 
