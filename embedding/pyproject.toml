@@ -1,0 +1,12 @@
+[project]
+name = "embedding-service"
+version = "0.1.0"
+description = "Embedding generation service for Luen Search Engine"
+requires-python = ">=3.10"
+dependencies = [
+    "torch",
+    "transformers",
+    "numpy",
+    "einops",
+    "tqdm",
+]

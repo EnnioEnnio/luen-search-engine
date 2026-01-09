@@ -87,11 +87,14 @@ def main():
     batch_ids = []
     
     # Estimate total for tqdm if possible (or just use simple counter)
-    # We won't count lines beforehand for speed, so tqdm might just show iterations
+    # Total MS MARCO docs is ~3.2M, or use limit if set
+    total_docs = 3213835
+    if args.limit:
+        total_docs = args.limit
     
     data_gen = load_data(args.data, args.limit)
     
-    for doc_id, text in tqdm(data_gen, desc="Processing documents"):
+    for doc_id, text in tqdm(data_gen, total=total_docs, desc="Processing documents"):
         batch_ids.append(doc_id)
         batch_texts.append(text)
         

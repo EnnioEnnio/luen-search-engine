@@ -43,8 +43,11 @@ bench: ## Run deterministic index + query benchmarks against the 100k MS MARCO s
 	fi
 	$(GO) test ./internal/index ./internal/indexer ./internal/search -run=^$$ -bench=. -benchmem
 
-embed: ## Generate embeddings for the dataset using the python script.
-	source embedding/.venv/bin/activate && python embedding/create_embedding.py --data data/msmarco-docs-preprocessed.tsv --output-dir embedding/output --batch-size 32
+embed: setup-python ## Generate embeddings for the dataset using the python script.
+	cd embedding && uv run python create_embedding.py --data ../data/msmarco-docs-preprocessed.tsv --output-dir output --batch-size 10
+
+setup-python: ## Install python dependencies using uv.
+	cd embedding && uv sync
 
 
 clean: ## Remove build artifacts.
