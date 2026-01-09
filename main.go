@@ -174,13 +174,14 @@ func main() {
 
 		searchStart := time.Now()
 		var (
-			results []search.Result
-			total   int
+			semanticResults []search.Result
+			bm25Results     []search.Result
+			total           int
 		)
 		if *enableSynonyms && synonymExpander != nil {
-			results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm, docLengths, synonymExpander)
+			semanticResults, bm25Results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm, docLengths, synonymExpander)
 		} else {
-			results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm, docLengths)
+			semanticResults, bm25Results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm, docLengths)
 		}
 		searchTime := time.Since(searchStart)
 		if err != nil {
@@ -188,7 +189,7 @@ func main() {
 			continue
 		}
 
-		output.PrintResults(results, docLookup, total, searchTime, docLengths)
+		output.PrintResults(semanticResults, bm25Results, docLookup, total, searchTime, docLengths)
 	}
 }
 

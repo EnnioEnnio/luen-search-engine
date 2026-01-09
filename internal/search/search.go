@@ -20,11 +20,49 @@ type Match = model.Match
 type Result = model.Result
 type FieldDocLength = model.FieldDocLengths
 
+type Response struct {
+	Results []Result
+	Count   int
+	Error   error
+}
+
 // Search finds documents that contain all query tokens and orders them by frequency.
-func Search(ctx context.Context, src *disk.PostingStore, tokenizer *text.Tokenizer, query string, docLengths map[DocID]FieldDocLength, expander ...*synonyms.SpladeLike) (res []Result, count int, e error) {
+func Search(ctx context.Context, src *disk.PostingStore, tokenizer *text.Tokenizer, query string, docLengths map[DocID]FieldDocLength, expander ...*synonyms.SpladeLike) (semanticResults []Result, bm25Results []Result, bm25Count int, e error) {
 	if query == "" {
-		return nil, 0, fmt.Errorf("query must not be empty")
+		return nil, nil, 0, fmt.Errorf("query must not be empty")
 	}
+	BM25Results := make(chan Response, 1)
+	SemanticResults := make(chan Response, 1)
+
+	// BM25 search
+	go func() {
+		results, resCount, err := SearchWithBM25(ctx, src, tokenizer, query, docLengths, expander...)
+		BM25Results <- Response{Results: results, Count: resCount, Error: err}
+	}()
+	// Semantic search
+	go func() {
+		results, resCount, err := SemanticSearch(ctx, query)
+		SemanticResults <- Response{Results: results, Count: resCount, Error: err}
+	}()
+
+	bm25Res := <-BM25Results
+	if bm25Res.Error != nil {
+		return nil, nil, 0, bm25Res.Error
+	}
+	semanticRes := <-SemanticResults
+	if semanticRes.Error != nil {
+		return nil, nil, 0, semanticRes.Error
+	}
+
+	// return top 10 bm25-results
+	if len(bm25Res.Results) > 10 {
+		bm25Res.Results = bm25Res.Results[:10]
+	}
+
+	return semanticRes.Results, bm25Res.Results, bm25Res.Count, nil
+}
+
+func SearchWithBM25(ctx context.Context, src *disk.PostingStore, tokenizer *text.Tokenizer, query string, docLengths map[DocID]FieldDocLength, expander ...*synonyms.SpladeLike) (res []Result, count int, e error) {
 
 	ast, err := processing.Parse(query, tokenizer)
 	if err != nil {
@@ -111,22 +149,35 @@ func Search(ctx context.Context, src *disk.PostingStore, tokenizer *text.Tokeniz
 				avgTitleLength, avgBodyLength,
 				DocumentFrequencies[match.Token], documentCount)
 		}
-		results[i].BM25Score = bm25Score
+		results[i].Score = bm25Score
 	}
 	// sort results by bm25 score
 	sort.Slice(results, func(i, j int) bool {
-		if results[i].BM25Score == results[j].BM25Score {
+		if results[i].Score == results[j].Score {
 			return results[i].DocID < results[j].DocID
 		}
-		return results[i].BM25Score > results[j].BM25Score
+		return results[i].Score > results[j].Score
 	})
-
 	resCount := len(results)
 
-	// return top 10 results
-	if len(results) > 10 {
-		results = results[:10]
-	}
-
 	return results, resCount, nil
+}
+func SemanticSearch(ctx context.Context, query string) (results []Result, count int, e error) {
+	// Placeholder implementation for semantic search
+	// sends query string to python service for embedding
+	// receives top-k results with relevance scores
+	// add some dummy results for now to test the output
+	dummyResults := []Result{
+		{DocID: 42, Score: 0.95},
+		{DocID: 7, Score: 0.89},
+		{DocID: 13, Score: 0.85},
+		{DocID: 99, Score: 0.80},
+		{DocID: 21, Score: 0.75},
+		{DocID: 33, Score: 0.70},
+		{DocID: 55, Score: 0.65},
+		{DocID: 78, Score: 0.60},
+		{DocID: 88, Score: 0.55},
+		{DocID: 100, Score: 0.50},
+	}
+	return dummyResults, len(dummyResults), nil
 }
