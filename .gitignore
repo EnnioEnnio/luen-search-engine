@@ -48,3 +48,6 @@ go.work.sum
 
 # Excluding bert model
 /models/*
+
+# To make documents accessible to copilot during development
+/docs/*

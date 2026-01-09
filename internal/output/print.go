@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"luen-search-engine/internal/data"
+	"luen-search-engine/internal/model"
 	"luen-search-engine/internal/search"
 )
 
@@ -16,7 +17,7 @@ const (
 )
 
 // PrintResults pretty-prints a list of results together with document metadata.
-func PrintResults(results []search.Result, lookup *data.DocumentStore, total int, searchTime time.Duration) {
+func PrintResults(results []search.Result, lookup *data.DocumentStore, total int, searchTime time.Duration, DocLengths map[model.DocID]model.FieldDocLengths) {
 	if total == 0 {
 		fmt.Println("No results found. Try another search term :)")
 		return
@@ -39,6 +40,8 @@ func PrintResults(results []search.Result, lookup *data.DocumentStore, total int
 		for _, match := range result.Matches {
 			fmt.Printf("       %s count: %d\n", match.Token, match.Frequency)
 		}
+		fmt.Printf("    📏 Document length: %d\n", DocLengths[result.DocID].BodyLength+DocLengths[result.DocID].TitleLength)
+		fmt.Printf("    ⭐ BM25 Score: %.4f\n", result.BM25Score)
 
 		if i < len(results)-1 {
 			fmt.Printf("%s%s%s\n", colorYellow, strings.Repeat("─", 80), colorReset)
