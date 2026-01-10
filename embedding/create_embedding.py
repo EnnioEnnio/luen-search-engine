@@ -64,7 +64,8 @@ def main():
     parser.add_argument("--output-dir", type=str, required=True, help="Directory to save embeddings")
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size for inference")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of documents to process")
-    parser.add_argument("--max-length", type=int, default=2048, help="Max sequence length (default: 2048 to save memory)")
+    parser.add_argument("--max-length", type=int, default=256, help="Max sequence length (default: 256 for local performance. Increase for better quality)")
+    parser.add_argument("--dim", type=int, default=64, help="Embedding dimension (default: 64 for Matryoshka). Model default is 768.")
     
     args = parser.parse_args()
     
@@ -114,6 +115,8 @@ def main():
                 
             emb = mean_pooling(model_output, encoded_input['attention_mask'])
             emb = F.layer_norm(emb, normalized_shape=(emb.shape[1],))
+            if args.dim < 768:
+                emb = emb[:, :args.dim]
             emb = F.normalize(emb, p=2, dim=1)
             
             embeddings.append(emb.cpu().numpy())
@@ -138,6 +141,8 @@ def main():
             
         emb = mean_pooling(model_output, encoded_input['attention_mask'])
         emb = F.layer_norm(emb, normalized_shape=(emb.shape[1],))
+        if args.dim < 768:
+            emb = emb[:, :args.dim]
         emb = F.normalize(emb, p=2, dim=1)
         
         embeddings.append(emb.cpu().numpy())
