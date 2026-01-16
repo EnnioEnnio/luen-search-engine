@@ -14,11 +14,13 @@ build: ## Build the project binary.
 test: ## Run all Go tests.
 	$(GO) test ./... -v
 
-lint: ## Run static analysis checks.
+lint: setup-python ## Run static analysis checks.
 	$(GO) vet ./...
+	cd embedding && uv run ruff check .
 
-format: ## Format all Go source files.
+format: setup-python ## Format all Go source files.
 	$(GO) fmt ./...
+	cd embedding && uv run ruff format .
 
 tidy: ## Ensure go.mod and go.sum are up to date.
 	$(GO) mod tidy
