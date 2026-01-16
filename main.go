@@ -144,8 +144,19 @@ func main() {
 		defer cleanup[i]()
 	}
 
+	// gRPC Client setup for semantic search
+	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Printf("Failed to create semantic search client: %v. Semantic search will be disabled.", err)
+	} else {
+		defer conn.Close()
+	}
+	semanticClient := &search.SemanticClient{
+		Client: pb.NewSemanticEmbeddingServiceClient(conn),
+	}
+
 	if *serverMode {
-		startServer(ctx, postingSource, docLookup, tokenizer, docLengths)
+		startServer(ctx, postingSource, docLookup, tokenizer, docLengths, semanticClient)
 		return
 	}
 
@@ -157,17 +168,6 @@ func main() {
 		}
 		synonymExpander = se
 		fmt.Println("Synonym Expander model loaded.")
-	}
-
-	// gRPC Client setup
-	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Printf("Failed to create semantic search client: %v. Semantic search will be disabled.", err)
-	} else {
-		defer conn.Close()
-	}
-	semanticClient := &search.SemanticClient{
-		Client: pb.NewSemanticEmbeddingServiceClient(conn),
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -216,7 +216,7 @@ func main() {
 	}
 }
 
-func startServer(ctx context.Context, postingSource *disk.PostingStore, docLookup *data.DocumentStore, tokenizer *text.Tokenizer, docLengths map[search.DocID]search.FieldDocLength) {
+func startServer(ctx context.Context, postingSource *disk.PostingStore, docLookup *data.DocumentStore, tokenizer *text.Tokenizer, docLengths map[search.DocID]search.FieldDocLength, semanticClient *search.SemanticClient) {
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 
 	http.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
@@ -227,7 +227,7 @@ func startServer(ctx context.Context, postingSource *disk.PostingStore, docLooku
 		}
 
 		start := time.Now()
-		semanticResults, bm25Results, total, err := search.Search(r.Context(), postingSource, tokenizer, strings.ToLower(query), docLengths)
+		semanticResults, bm25Results, total, err := search.Search(r.Context(), postingSource, tokenizer, semanticClient, strings.ToLower(query), docLengths)
 		duration := time.Since(start)
 
 		if err != nil {
