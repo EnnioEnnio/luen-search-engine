@@ -78,29 +78,11 @@ function renderResults(semanticResults: SearchResult[], bm25Results: SearchResul
     const columnsContainer = document.createElement('div');
     columnsContainer.className = 'results-grid';
 
-    // Semantic Results Column
-    const semanticColumn = document.createElement('div');
-    semanticColumn.className = 'results-column';
-    const semanticHeader = document.createElement('h2');
-    semanticHeader.textContent = '🔮 Semantic Search Results';
-    semanticColumn.appendChild(semanticHeader);
-
-    if (semanticResults && semanticResults.length > 0) {
-        semanticResults.forEach((result, index) => {
-            semanticColumn.appendChild(createResultCard(result, index));
-        });
-    } else {
-        const noResults = document.createElement('div');
-        noResults.className = 'no-results';
-        noResults.textContent = 'No semantic results';
-        semanticColumn.appendChild(noResults);
-    }
-
     // BM25 Results Column
     const bm25Column = document.createElement('div');
     bm25Column.className = 'results-column';
     const bm25Header = document.createElement('h2');
-    bm25Header.textContent = '📊 BM25 Results';
+    bm25Header.textContent = 'BM25 Results';
     bm25Column.appendChild(bm25Header);
 
     if (bm25Results && bm25Results.length > 0) {
@@ -114,8 +96,26 @@ function renderResults(semanticResults: SearchResult[], bm25Results: SearchResul
         bm25Column.appendChild(noResults);
     }
 
-    columnsContainer.appendChild(semanticColumn);
+    // Semantic Results Column
+    const semanticColumn = document.createElement('div');
+    semanticColumn.className = 'results-column';
+    const semanticHeader = document.createElement('h2');
+    semanticHeader.textContent = 'Semantic Search Results';
+    semanticColumn.appendChild(semanticHeader);
+
+    if (semanticResults && semanticResults.length > 0) {
+        semanticResults.forEach((result, index) => {
+            semanticColumn.appendChild(createResultCard(result, index));
+        });
+    } else {
+        const noResults = document.createElement('div');
+        noResults.className = 'no-results';
+        noResults.textContent = 'No semantic results';
+        semanticColumn.appendChild(noResults);
+    }
+
     columnsContainer.appendChild(bm25Column);
+    columnsContainer.appendChild(semanticColumn);
     resultsContainer.appendChild(columnsContainer);
 }
 

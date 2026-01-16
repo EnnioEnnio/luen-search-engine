@@ -44,7 +44,7 @@ class SemanticSearchService(search_pb2_grpc.SemanticEmbeddingServiceServicer):
         # but float16 is faster if supported. Let's use float32 for now to avoid potential type mismatches with numpy.
         print("Loading model...")
         self.tokenizer = AutoTokenizer.from_pretrained("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
-        self.model = AutoModel.from_pretrained("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True, trust_remote_code=True)
+        self.model = AutoModel.from_pretrained("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
         self.model.to(self.device)
         self.model.eval()
         print("Service ready.")

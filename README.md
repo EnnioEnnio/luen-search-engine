@@ -12,11 +12,14 @@
 6. [External/blocked indexing](#externalblocked-indexing)
 7. [Disk-based serving](#disk-based-serving)
 8. [Searching](#searching)
-9. [Profiling](#profiling)
-10. [Performance](#performance)
-11. [Project Layout](#project-layout)
+9. [Search interface](#search-interface)
+10. [Browser Frontend](#browser-frontend)
+11. [Semantic Search](#semantic-search)
+12. [Profiling](#profiling)
+13. [Performance](#performance)
+14. [Project Layout](#project-layout)
 
-A search engine implementation in Go with support for large-scale document indexing.
+A search engine implementation in Go with support for large-scale document indexing, BM25 ranking, and optional semantic search capabilities.
 Loads documents from the MS MARCO collection, builds an inverted index, 
 and provides a CLI search interface across query terms.
 
@@ -24,6 +27,7 @@ and provides a CLI search interface across query terms.
 
 - Go 1.25+
 - The `msmarco-docs.tsv` [dataset](https://microsoft.github.io/msmarco/Datasets.html#datasets). Place it anywhere convenient – by default the program looks for `data/msmarco-docs-preprocessed.tsv`.
+- **Python 3.8+** with [uv](https://docs.astral.sh/uv/) package manager (for semantic search features)
 
 For Benchmarking:
 - A benchmark subset at `data/msmarco-docs-bench-100000.tsv` (first 100k rows). You can create it with `head -n 100000 data/msmarco-docs.tsv > data/msmarco-docs-bench-100000.tsv`.
@@ -34,19 +38,22 @@ For Benchmarking:
 A `makefile` is provided for common tasks:
 
 ```bash
-make help        # Show available commands
-make build       # Compile the binary into bin/luen
-make frontend    # Compile the TypeScript frontend
-make dev         # Run the CLI in in-memory mode (default limit 10k docs)
-make run         # Run in disk-serving mode (auto-builds 100k docs if needed)
-make start       # Start the HTTP server using the on-disk index (auto-builds full index if needed)
-make index       # Force a full on-disk index build (limit=0)
-make test        # Run all tests
-make bench       # Run benchmark suites (100k dataset + 1k queries)
-make format      # go fmt
-make lint        # Run go vet
-make tidy        # go mod tidy
-make clean       # Remove build artifacts and index directory
+make help             # Show available commands
+make build            # Compile the binary into bin/luen
+make frontend         # Compile the TypeScript frontend
+make dev              # Run the CLI in in-memory mode (default limit 10k docs)
+make run              # Run in disk-serving mode (auto-builds 100k docs if needed)
+make start            # Start the HTTP server using the on-disk index (auto-builds full index if needed)
+make index            # Force a full on-disk index build (limit=0)
+make test             # Run all tests
+make bench            # Run benchmark suites (100k dataset + 1k queries)
+make format           # go fmt
+make lint             # Run go vet
+make tidy             # go mod tidy
+make clean            # Remove build artifacts and index directory
+make setup-python     # Install Python dependencies using uv
+make embed            # Generate embeddings for the dataset
+make serve-embedding  # Run the semantic search gRPC service
 ```
 
 ### Dataset setup
@@ -162,6 +169,54 @@ The frontend is built with TypeScript. To rebuild the frontend assets:
 make frontend
 ```
 
+### Semantic Search
+
+The project includes an optional semantic search feature using transformer-based embeddings.
+
+#### Setup Semantic Search
+
+1. Install Python dependencies:
+```bash
+make setup-python
+```
+
+2. Generate embeddings for your dataset:
+```bash
+make embed
+```
+This uses the [nomic-ai/nomic-embed-text-v1.5](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5) model to create document embeddings. The embeddings are stored in `embedding/output/`.
+
+You can customize the embedding generation with the following flags:
+```bash
+cd embedding && uv run python create_embedding.py \
+  --data <path>           # Path to input TSV file (required)
+  --output-dir <path>     # Directory to save embeddings (required)
+  --batch-size <int>      # Batch size for inference (default: 64)
+  --limit <int>           # Limit number of documents to process (default: all)
+  --max-length <int>      # Max sequence length in tokens (default: 256)
+  --dim <int>             # Embedding dimension (default: 64, max: 768)
+```
+
+Or: use our included embeddings for the first 50.000 documents. You can find these in `embedding/output/`
+
+3. Start the gRPC semantic search service:
+```bash
+make serve-embedding
+```
+The service runs on port 50051 and provides semantic similarity search via gRPC.
+
+#### Architecture
+
+- **Go backend** handles traditional BM25 ranking and query processing
+- **Python gRPC service** provides semantic search using transformer models
+- Communication happens via Protocol Buffers (see `proto/search.proto`)
+- The embedding service loads pre-computed embeddings from `embedding/output/`
+
+The semantic search feature uses the `nomic-embed-text-v1.5` model, which supports:
+- 768-dimensional embeddings
+- Context length up to 8192 tokens
+- Hardware acceleration (MPS for Apple Silicon, CUDA for NVIDIA GPUs)
+
 ## Profiling
 
 - `make bench` exercises both the in-memory search benchmarks and the new disk pipeline benchmarks (build + serve against the 100k dataset/1k queries). The disk suite reports docs/sec for the builder along with dictionary size metrics and verifies doc fetches from `docs.bin`.
@@ -173,8 +228,20 @@ See open issues for planned optimizations (parallelization, tokenization improve
 
 ## Project Layout
 
-- `internal/data` – Dataset loader
+- `internal/data` – Dataset loader and document store
 - `internal/text` – Tokenizer with stopword filtering
-- `internal/index` – Inverted index builder
-- `internal/search` – Query evaluation and ranking
+- `internal/index` – Inverted index builder (in-memory and disk-based)
+- `internal/indexer` – SPIMI-based external indexing with merge
+- `internal/search` – Query evaluation and BM25 ranking
+- `internal/processing` – Query parser (lexer, AST, boolean operators)
+- `internal/ranking` – BM25 scoring implementation
 - `internal/output` – CLI rendering helpers
+- `internal/synonyms` – SPLADE-like synonym expansion (optional)
+- `internal/pb` – Protocol Buffer definitions for gRPC
+- `embedding/` – Python semantic search service
+  - `create_embedding.py` – Batch embedding generation script
+  - `semantic_search.py` – gRPC server for semantic search
+  - `output/` – Pre-computed embeddings storage
+- `static/` – Browser frontend (TypeScript + HTML/CSS)
+- `proto/` – Protocol Buffer schemas
+- `cmd/` – Additional CLI tools and benchmarks
