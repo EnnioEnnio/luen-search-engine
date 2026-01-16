@@ -41,7 +41,7 @@ class SemanticSearchService(search_pb2_grpc.SemanticEmbeddingServiceServicer):
         
         # Load model with same config as creation script
         # Using float32 for inference/server might be safer for compatibility, 
-        # but float16 is faster if supported. Let's use float32 for now to avoid potential type mismatches with numpy.
+        # but float16 is faster if supported. We use float32 for now to avoid potential type mismatches with numpy.
         print("Loading model...")
         self.tokenizer = AutoTokenizer.from_pretrained("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
         self.model = AutoModel.from_pretrained("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
