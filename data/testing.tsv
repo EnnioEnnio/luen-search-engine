@@ -1,39 +1,29 @@
-0		catXXXX	cat
-1		dogXXXX	dog
-2		bitesXXXX	bites
-3		catcatXXXX	cat cat
-4		catdogXXXX	cat dog
-5		catbitesXXXX	cat bites
-6		dogcatXXXX	dog cat
-7		dogdogXXXX	dog dog
-8		dogbitesXXXX	dog bites
-9		bitescatXXXX	bites cat
-10		bitesdogXXXX	bites dog
-11		bitesbitesXXXX	bites bites
-12		catcatcatXXXX	cat cat cat
-13		catcatdogXXXX	cat cat dog
-14		catcatbitesXXXX	cat cat bites
-15		catdogcatXXXX	cat dog cat
-16		catdogdogXXXX	cat dog dog
-17		catdogbitesXXXX	cat dog bites
-18		catbitescatXXXX	cat bites cat
-19		catbitesdogXXXX	cat bites dog
-20		catbitesbitesXXXX	cat bites bites
-21		dogcatcatXXXX	dog cat cat
-22		dogcatdogXXXX	dog cat dog
-23		dogcatbitesXXXX	dog cat bites
-24		dogdogcatXXXX	dog dog cat
-25		dogdogdogXXXX	dog dog dog
-26		dogdogbitesXXXX	dog dog bites
-27		dogbitescatXXXX	dog bites cat
-28		dogbitesdogXXXX	dog bites dog
-29		dogbitesbitesXXXX	dog bites bites
-30		bitescatcatXXXX	bites cat cat
-31		bitescatdogXXXX	bites cat dog
-32		bitescatbitesXXXX	bites cat bites
-33		bitesdogcatXXXX	bites dog cat
-34		bitesdogdogXXXX	bites dog dog
-35		bitesdogbitesXXXX	bites dog bites
-36		bitesbitescatXXXX	bites bites cat
-37		bitesbitesdogXXXX	bites bites dog
-38		bitesbitesbitesXXXX	bites bites bites
+1001	http://example.com/1001	Alpha	ranksearch rankengine rankengine
+1002	http://example.com/1002	Beta	rankengine ranksearch
+1003	http://example.com/1003	Gamma	ranksearch ranksearch rankengine
+2001	http://example.com/2001	Alpha	misssearch missterm
+3000	http://example.com/3000	Title	limitterm limitterm
+3001	http://example.com/3001	Title	limitterm limitterm
+3002	http://example.com/3002	Title	limitterm limitterm
+3003	http://example.com/3003	Title	limitterm limitterm
+3004	http://example.com/3004	Title	limitterm limitterm
+3005	http://example.com/3005	Title	limitterm limitterm
+3006	http://example.com/3006	Title	limitterm limitterm
+3007	http://example.com/3007	Title	limitterm limitterm
+3008	http://example.com/3008	Title	limitterm limitterm
+3009	http://example.com/3009	Title	limitterm limitterm
+3010	http://example.com/3010	Title	limitterm limitterm
+4001	http://example.com/4001	Alpha	notcat notdog
+4002	http://example.com/4002	Beta	notcat notbird
+4003	http://example.com/4003	Gamma	notcat notdog notbird
+5001	http://example.com/5001	Doc1	orcat ordog
+5002	http://example.com/5002	Doc2	orbird
+5003	http://example.com/5003	Doc3	orcat orbird
+5004	http://example.com/5004	Doc4	ordog
+6001	http://example.com/6001	Doc1	parencat parenbird
+6002	http://example.com/6002	Doc2	parendog parenbird
+6003	http://example.com/6003	Doc3	parenbird
+7001	http://example.com/7001		phrasequick phrasebrown phrasefox
+7002	http://example.com/7002		phrasequick phrasefox phrasebrown
+7003	http://example.com/7003		phrasequick phrasebrown phrasequick phrasebrown
+8001	http://example.com/8001	Doc1	negcat

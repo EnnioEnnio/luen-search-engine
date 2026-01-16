@@ -3,7 +3,7 @@ package processing
 import (
 	"fmt"
 
-	"luen-search-engine/internal/index"
+	"luen-search-engine/internal/index/disk"
 	"luen-search-engine/internal/model"
 )
 
@@ -26,7 +26,9 @@ const (
 // Node represents a query AST element that can evaluate itself against the index.
 type Node interface {
 	Type() NodeType
-	Eval(src index.PostingSource) ([]Result, error)
+	Eval(src *disk.PostingStore) ([]Result, error)
+	GetPositiveTokens() []Token
+	Prune(highIDFTokens map[Token]bool) Node
 }
 
 // TermNode matches a single normalized token.
@@ -56,8 +58,36 @@ type NotNode struct {
 
 func (n *TermNode) Type() NodeType { return tTermNode }
 
+func (n *TermNode) GetPositiveTokens() []Token {
+	return []Token{n.Token}
+}
+
+func (n *PhraseNode) GetPositiveTokens() []Token {
+	return n.Tokens
+}
+
+func (a *AndNode) GetPositiveTokens() []Token {
+	tokens := make([]Token, 0)
+	for _, child := range a.Children {
+		tokens = append(tokens, child.GetPositiveTokens()...)
+	}
+	return tokens
+}
+
+func (o *OrNode) GetPositiveTokens() []Token {
+	tokens := make([]Token, 0)
+	for _, child := range o.Children {
+		tokens = append(tokens, child.GetPositiveTokens()...)
+	}
+	return tokens
+}
+
+func (n *NotNode) GetPositiveTokens() []Token {
+	return nil
+}
+
 // Eval returns postings for the term via the provided posting source.
-func (n *TermNode) Eval(src index.PostingSource) ([]Result, error) {
+func (n *TermNode) Eval(src *disk.PostingStore) ([]Result, error) {
 	if n == nil || n.Token == "" {
 		return nil, nil
 	}
@@ -88,7 +118,7 @@ func (n *TermNode) Eval(src index.PostingSource) ([]Result, error) {
 func (n *PhraseNode) Type() NodeType { return tPhraseNode }
 
 // Eval performs a positional merge to find contiguous matches for the phrase.
-func (n *PhraseNode) Eval(src index.PostingSource) ([]Result, error) {
+func (n *PhraseNode) Eval(src *disk.PostingStore) ([]Result, error) {
 	if len(n.Tokens) == 0 {
 		return nil, nil
 	}
@@ -161,7 +191,7 @@ func (n *PhraseNode) Eval(src index.PostingSource) ([]Result, error) {
 func (a *AndNode) Type() NodeType { return tAndNode }
 
 // Eval intersects child results and subtracts explicit negations.
-func (a *AndNode) Eval(src index.PostingSource) ([]Result, error) {
+func (a *AndNode) Eval(src *disk.PostingStore) ([]Result, error) {
 	if len(a.Children) == 0 {
 		return nil, nil
 	}
@@ -219,7 +249,7 @@ func (a *AndNode) Eval(src index.PostingSource) ([]Result, error) {
 func (o *OrNode) Type() NodeType { return tOrNode }
 
 // Eval unions child results, summing frequencies per document.
-func (o *OrNode) Eval(src index.PostingSource) ([]Result, error) {
+func (o *OrNode) Eval(src *disk.PostingStore) ([]Result, error) {
 	if len(o.Children) == 0 {
 		return nil, nil
 	}
@@ -258,12 +288,12 @@ func (o *OrNode) Eval(src index.PostingSource) ([]Result, error) {
 func (n *NotNode) Type() NodeType { return tNotNode }
 
 // Eval always errors—NOT must be combined with a positive operand via AndNode.
-func (n *NotNode) Eval(src index.PostingSource) ([]Result, error) {
+func (n *NotNode) Eval(src *disk.PostingStore) ([]Result, error) {
 	return nil, fmt.Errorf("NOT expressions must be combined with a positive search term")
 }
 
 // evalNegated returns the child results for exclusion handling.
-func (n *NotNode) evalNegated(src index.PostingSource) ([]Result, error) {
+func (n *NotNode) evalNegated(src *disk.PostingStore) ([]Result, error) {
 	if n == nil || n.Child == nil {
 		return nil, fmt.Errorf("negation is missing an operand")
 	}
@@ -359,4 +389,71 @@ func (n *PhraseNode) checkPhrasePairs(docList1, docList2 map[DocID]Match) map[Do
 	}
 	return merged
 
+}
+
+func (n *TermNode) Prune(highIDFTokens map[Token]bool) Node {
+	if highIDFTokens[n.Token] {
+		return n
+	}
+	return nil
+}
+
+func (n *PhraseNode) Prune(highIDFTokens map[Token]bool) Node {
+	// for phrase nodes, we keep them as is if at least one token in the phrase is high IDF
+	keep := false
+	for _, token := range n.Tokens {
+		if highIDFTokens[token] {
+			keep = true
+			break
+		}
+	}
+	if !keep {
+		return nil
+	}
+	return n
+}
+
+func (n *AndNode) Prune(highIDFTokens map[Token]bool) Node {
+	newChildren := []Node{}
+	for _, child := range n.Children {
+		pruned := child.Prune(highIDFTokens)
+		if pruned != nil {
+			newChildren = append(newChildren, pruned)
+		}
+	}
+	if len(newChildren) == 0 {
+		return nil
+	}
+	if len(newChildren) == 1 {
+		return newChildren[0]
+	}
+	n.Children = newChildren
+	return n
+}
+
+func (n *OrNode) Prune(highIDFTokens map[Token]bool) Node {
+	newChildren := []Node{}
+	for _, child := range n.Children {
+		pruned := child.Prune(highIDFTokens)
+		if pruned != nil {
+			newChildren = append(newChildren, pruned)
+		}
+	}
+	if len(newChildren) == 0 {
+		return nil
+	}
+	if len(newChildren) == 1 {
+		return newChildren[0]
+	}
+	n.Children = newChildren
+	return n
+}
+
+func (n *NotNode) Prune(highIDFTokens map[Token]bool) Node {
+	pruned := n.Child.Prune(highIDFTokens)
+	if pruned == nil {
+		return nil
+	}
+	n.Child = pruned
+	return n
 }

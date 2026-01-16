@@ -45,3 +45,9 @@ go.work.sum
 # Excluding Benchmark files 
 *.pprof
 *.svg
+
+# Excluding bert model
+/models/*
+
+# To make documents accessible to copilot during development
+/docs/*

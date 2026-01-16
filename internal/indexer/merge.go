@@ -62,6 +62,9 @@ func mergePartials(paths []string, outputDir string, keepPartials bool) (int, er
 	}
 	defer dictWriter.Close()
 
+	// Collect document lengths from all partials
+	mergedDocLengths := make(map[model.DocID]model.FieldDocLengths)
+
 	h := make(postingHeap, 0, len(paths))
 	readers := make([]*partialReader, 0, len(paths))
 	for i, path := range paths {
@@ -128,9 +131,24 @@ func mergePartials(paths []string, outputDir string, keepPartials bool) (int, er
 		}
 	}
 
+	// Merge document lengths from all partial readers
+	for _, reader := range readers {
+		if reader.docLengths != nil {
+			for docID, length := range reader.docLengths {
+				mergedDocLengths[docID] = length
+			}
+		}
+	}
+
+	// Write merged document lengths to disk
+	if err := writeDocLengths(outputDir, mergedDocLengths); err != nil {
+		return 0, fmt.Errorf("write doc lengths: %w", err)
+	}
+
 	if !keepPartials {
 		for _, path := range paths {
 			_ = os.Remove(path)
+			_ = os.Remove(path + ".doclengths")
 		}
 	}
 
@@ -253,4 +271,46 @@ func writePosting(file *os.File, posting diskPosting) (int64, int64, error) {
 	}
 
 	return offset, int64(n), nil
+}
+
+const docLengthFileName = "doclengths.bin"
+
+// writeDocLengths persists the document length map to a binary file.
+func writeDocLengths(dir string, docLengths map[model.DocID]model.FieldDocLengths) error {
+	path := filepath.Join(dir, docLengthFileName)
+	file, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("create doclengths file: %w", err)
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+	defer writer.Flush()
+
+	// Write count
+	if err := binary.Write(writer, binary.LittleEndian, uint32(len(docLengths))); err != nil {
+		return fmt.Errorf("write count: %w", err)
+	}
+
+	// Sort docIDs for deterministic output
+	docIDs := make([]model.DocID, 0, len(docLengths))
+	for docID := range docLengths {
+		docIDs = append(docIDs, docID)
+	}
+	sort.Slice(docIDs, func(i, j int) bool { return docIDs[i] < docIDs[j] })
+
+	// Write entries
+	for _, docID := range docIDs {
+		if err := binary.Write(writer, binary.LittleEndian, docID); err != nil {
+			return fmt.Errorf("write docID: %w", err)
+		}
+		if err := binary.Write(writer, binary.LittleEndian, docLengths[docID].TitleLength); err != nil {
+			return fmt.Errorf("write title length: %w", err)
+		}
+		if err := binary.Write(writer, binary.LittleEndian, docLengths[docID].BodyLength); err != nil {
+			return fmt.Errorf("write body length: %w", err)
+		}
+	}
+
+	return writer.Flush()
 }

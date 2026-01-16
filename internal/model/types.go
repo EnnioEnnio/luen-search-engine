@@ -9,7 +9,9 @@ type Token = string
 // Match keeps track of how often a token occurred in a document.
 type Match struct {
 	Token     Token
-	Frequency int
+	Frequency int // Total frequency (title + body)
+	TF_title  int // Frequency in title field
+	TF_body   int // Frequency in body field
 	Positions []int
 }
 
@@ -18,4 +20,11 @@ type Result struct {
 	DocID              DocID
 	TotalTermFrequency int // used for ranking only
 	Matches            []Match
+	BM25Score          float64
+}
+
+// Document lengths stores the number of tokens in the title and body fields of a document.
+type FieldDocLengths struct {
+	TitleLength uint32
+	BodyLength  uint32
 }

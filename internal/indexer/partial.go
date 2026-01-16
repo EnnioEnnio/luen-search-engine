@@ -28,8 +28,9 @@ type diskPosting struct {
 	Docs    []diskDocPosting
 }
 
-// spillPartialIndex encodes an in-memory inverted index into a sorted gob file on disk.
-func spillPartialIndex(path string, idx index.InvertedIndex) error {
+// spillPartialIndex encodes an in-memory inverted index and doc lengths into sorted gob files on disk.
+func spillPartialIndex(path string, result index.BuildResult) error {
+	// Write inverted index
 	file, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("create partial index: %w", err)
@@ -40,14 +41,14 @@ func spillPartialIndex(path string, idx index.InvertedIndex) error {
 	defer writer.Flush()
 
 	encoder := gob.NewEncoder(writer)
-	tokens := make([]string, 0, idx.TokenCount())
-	for token := range idx {
+	tokens := make([]string, 0, result.Index.TokenCount())
+	for token := range result.Index {
 		tokens = append(tokens, token)
 	}
 	sort.Strings(tokens)
 
 	for _, token := range tokens {
-		posting := idx[token]
+		posting := result.Index[token]
 		docIDs := make([]DocID, 0, len(posting.Docs))
 		// TODO: build index like this in the first place to speed things up. i.e. remove map
 		for docID := range posting.Docs {
@@ -67,17 +68,35 @@ func spillPartialIndex(path string, idx index.InvertedIndex) error {
 		}
 	}
 
-	return writer.Flush()
+	if err := writer.Flush(); err != nil {
+		return err
+	}
+
+	// Write document lengths to separate file
+	docLengthPath := path + ".doclengths"
+	docLengthFile, err := os.Create(docLengthPath)
+	if err != nil {
+		return fmt.Errorf("create doc length file: %w", err)
+	}
+	defer docLengthFile.Close()
+
+	docLengthEncoder := gob.NewEncoder(docLengthFile)
+	if err := docLengthEncoder.Encode(result.DocLengths); err != nil {
+		return fmt.Errorf("encode doc lengths: %w", err)
+	}
+
+	return nil
 }
 
 // partialReader streams postings from a spilled partial index one entry at a time.
 type partialReader struct {
-	id      int
-	path    string
-	file    *os.File
-	decoder *gob.Decoder
-	current *diskPosting
-	done    bool
+	id         int
+	path       string
+	file       *os.File
+	decoder    *gob.Decoder
+	current    *diskPosting
+	done       bool
+	docLengths map[model.DocID]model.FieldDocLengths
 }
 
 // newPartialReader opens a gob-encoded partial index for streaming.
@@ -87,12 +106,24 @@ func newPartialReader(path string, id int) (*partialReader, error) {
 		return nil, fmt.Errorf("open partial %s: %w", path, err)
 	}
 
-	return &partialReader{
+	reader := &partialReader{
 		id:      id,
 		path:    path,
 		file:    file,
 		decoder: gob.NewDecoder(bufio.NewReader(file)),
-	}, nil
+	}
+	// Load document lengths from separate file
+	docLengthPath := path + ".doclengths"
+	if docLengthFile, err := os.Open(docLengthPath); err == nil {
+		defer docLengthFile.Close()
+		var docLengths map[model.DocID]model.FieldDocLengths
+		decoder := gob.NewDecoder(docLengthFile)
+		if err := decoder.Decode(&docLengths); err == nil {
+			reader.docLengths = docLengths
+		}
+	}
+
+	return reader, nil
 }
 
 // advance decodes the next posting entry from the partial index stream.

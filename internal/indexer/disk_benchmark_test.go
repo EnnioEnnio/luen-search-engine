@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"context"
 	"os"
 	"sync"
 	"testing"
@@ -8,6 +9,7 @@ import (
 
 	"luen-search-engine/internal/benchutil"
 	"luen-search-engine/internal/data"
+	"luen-search-engine/internal/index"
 	"luen-search-engine/internal/index/disk"
 	"luen-search-engine/internal/search"
 	"luen-search-engine/internal/text"
@@ -81,11 +83,16 @@ func BenchmarkDiskQueryServing(b *testing.B) {
 	b.ReportMetric(float64(dict.Size()), "tokens_loaded")
 	b.ReportMetric(float64(len(queries)), "queries_per_loop")
 
+	docLengths, err := index.LoadDocLengths(dir)
+	if err != nil {
+		b.Fatalf("load doc lengths: %v", err)
+	}
+
 	loopStart := time.Now()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, query := range queries {
-			results, _, err := search.Search(store, tokenizer, query)
+			results, _, err := search.Search(context.Background(), store, tokenizer, query, docLengths)
 			if err != nil {
 				b.Fatalf("search query %q: %v", query, err)
 			}

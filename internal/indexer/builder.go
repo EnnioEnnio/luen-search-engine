@@ -107,9 +107,9 @@ func (b *Builder) Build() (*Manifest, error) {
 			}
 		}
 
-		partial := index.Build(docs, b.cfg.Tokenizer)
+		buildResult := index.Build(docs, b.cfg.Tokenizer)
 		partialPath := filepath.Join(tempDir, fmt.Sprintf(partialFilePattern, batch))
-		if err := spillPartialIndex(partialPath, partial); err != nil {
+		if err := spillPartialIndex(partialPath, buildResult); err != nil {
 			return nil, fmt.Errorf("write partial index: %w", err)
 		}
 		partialPaths = append(partialPaths, partialPath)

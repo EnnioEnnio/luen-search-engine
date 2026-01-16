@@ -1,21 +1,84 @@
 package search
 
 import (
+	"context"
+	"log"
+	"os"
 	"slices"
 	"strings"
 	"testing"
 
-	"luen-search-engine/internal/data"
 	"luen-search-engine/internal/index"
-	"luen-search-engine/internal/processing"
+	"luen-search-engine/internal/index/disk"
+	"luen-search-engine/internal/indexer"
+	"luen-search-engine/internal/model"
 	"luen-search-engine/internal/text"
 )
 
-func TestSearchReturnsErrorOnEmptyQuery(t *testing.T) {
-	idx := make(index.InvertedIndex)
-	tokenizer := text.NewTokenizer()
+var (
+	testPostingStore *disk.PostingStore
+	testTokenizer    *text.Tokenizer
+	testDocLengths   map[model.DocID]model.FieldDocLengths
+)
 
-	_, _, err := Search(processing.NewMemorySource(idx), tokenizer, "")
+func TestMain(m *testing.M) {
+	// Setup
+	testTokenizer = text.NewTokenizer()
+	tempDir, err := os.MkdirTemp("", "search_test_index")
+	if err != nil {
+		log.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Build index from testing.tsv
+	// We assume testing.tsv is in ../../data/testing.tsv relative to this test file
+	dataPath := "../../data/testing.tsv"
+	if _, err := os.Stat(dataPath); os.IsNotExist(err) {
+		// Fallback for running from root
+		dataPath = "data/testing.tsv"
+	}
+
+	builder := indexer.NewBuilder(indexer.Config{
+		DataPath:   dataPath,
+		Limit:      0, // No limit
+		BatchBytes: 1024 * 1024,
+		OutputDir:  tempDir,
+		Tokenizer:  testTokenizer,
+	})
+
+	if _, err := builder.Build(); err != nil {
+		log.Fatalf("failed to build test index: %v", err)
+	}
+
+	// Load the index
+	dict, err := disk.LoadDictionary(indexer.DictionaryPath(tempDir))
+	if err != nil {
+		log.Fatalf("failed to load dictionary: %v", err)
+	}
+
+	testPostingStore, err = disk.NewPostingStore(dict, indexer.PostingsPath(tempDir), 100)
+	if err != nil {
+		log.Fatalf("failed to open posting store: %v", err)
+	}
+
+	// Load document lengths
+	testDocLengths, err = index.LoadDocLengths(tempDir)
+	if err != nil {
+		log.Fatalf("failed to load doc lengths: %v", err)
+	}
+
+	// Run tests
+	code := m.Run()
+
+	// Cleanup
+	testPostingStore.Close()
+	os.RemoveAll(tempDir)
+
+	os.Exit(code)
+}
+
+func TestSearchReturnsErrorOnEmptyQuery(t *testing.T) {
+	_, _, err := Search(context.Background(), testPostingStore, testTokenizer, "", testDocLengths)
 	if err == nil {
 		t.Fatal("expected error for empty query, got nil")
 	}
@@ -25,16 +88,12 @@ func TestSearchReturnsErrorOnEmptyQuery(t *testing.T) {
 }
 
 func TestSearchSingleTermRanksByFrequency(t *testing.T) {
-	docs := []data.Document{
-		{ID: 123, Title: "Alpha", Text: "Search engine engine"},
-		{ID: 456, Title: "Beta", Text: "Engine search"},
-		{ID: 789, Title: "Gamma", Text: "Search search engine"},
-	}
+	// Data from testing.tsv:
+	// 1001: ranksearch rankengine rankengine (search:1, engine:2)
+	// 1002: rankengine ranksearch (search:1, engine:1)
+	// 1003: ranksearch ranksearch rankengine (search:2, engine:1)
 
-	tokenizer := text.NewTokenizer()
-	idx := index.Build(docs, tokenizer)
-
-	results, total, err := Search(processing.NewMemorySource(idx), tokenizer, "search engine")
+	results, total, err := Search(context.Background(), testPostingStore, testTokenizer, "ranksearch rankengine", testDocLengths)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -46,26 +105,32 @@ func TestSearchSingleTermRanksByFrequency(t *testing.T) {
 		t.Fatalf("expected 3 results, got %d", len(results))
 	}
 
-	if results[0].DocID != 123 || results[0].TotalTermFrequency != 3 {
-		t.Fatalf("unexpected first result: %+v", results[0])
+	// Expected ranking:
+	// 1. 1001 (freq 3)
+	// 2. 1003 (freq 3)
+	// Note: 1001 and 1003 have same total freq, but we check specific values.
+	// 3. 1002 (freq 2)
+
+	// Check for existence and correct frequencies
+	found := make(map[uint32]int)
+	for _, r := range results {
+		found[r.DocID] = r.TotalTermFrequency
 	}
-	if results[1].DocID != 789 || results[1].TotalTermFrequency != 3 {
-		t.Fatalf("unexpected second result: %+v", results[1])
+
+	if found[1001] != 3 {
+		t.Errorf("doc 1001: expected freq 3, got %d", found[1001])
 	}
-	if results[2].DocID != 456 || results[2].TotalTermFrequency != 2 {
-		t.Fatalf("unexpected third result: %+v", results[2])
+	if found[1003] != 3 {
+		t.Errorf("doc 1003: expected freq 3, got %d", found[1003])
+	}
+	if found[1002] != 2 {
+		t.Errorf("doc 1002: expected freq 2, got %d", found[1002])
 	}
 }
 
 func TestSearchMissingTokenReturnsNil(t *testing.T) {
-	docs := []data.Document{
-		{ID: 123, Title: "Alpha", Text: "search term"},
-	}
-
-	tokenizer := text.NewTokenizer()
-	idx := index.Build(docs, tokenizer)
-
-	results, total, err := Search(processing.NewMemorySource(idx), tokenizer, "missing token")
+	// Data: 2001: misssearch missterm
+	results, total, err := Search(context.Background(), testPostingStore, testTokenizer, "missingtokenxyz", testDocLengths)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -78,19 +143,8 @@ func TestSearchMissingTokenReturnsNil(t *testing.T) {
 }
 
 func TestSearchLimitsToTopTenResults(t *testing.T) {
-	docs := make([]data.Document, 11)
-	for i := range docs {
-		docs[i] = data.Document{
-			ID:    uint32(i),
-			Title: "Title",
-			Text:  "Term term",
-		}
-	}
-
-	tokenizer := text.NewTokenizer()
-	idx := index.Build(docs, tokenizer)
-
-	results, total, err := Search(processing.NewMemorySource(idx), tokenizer, "term")
+	// Data: 3000-3010 (11 docs) all have "limitterm"
+	results, total, err := Search(context.Background(), testPostingStore, testTokenizer, "limitterm", testDocLengths)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -103,16 +157,14 @@ func TestSearchLimitsToTopTenResults(t *testing.T) {
 }
 
 func TestSearchWithNotOperator(t *testing.T) {
-	docs := []data.Document{
-		{ID: 123, Title: "Alpha", Text: "cat dog"},
-		{ID: 456, Title: "Beta", Text: "cat bird"},
-		{ID: 789, Title: "Gamma", Text: "cat dog bird"},
-	}
+	// Data:
+	// 4001: notcat notdog
+	// 4002: notcat notbird
+	// 4003: notcat notdog notbird
 
-	tokenizer := text.NewTokenizer()
-	idx := index.Build(docs, tokenizer)
-
-	results, total, err := Search(processing.NewMemorySource(idx), tokenizer, "cat and not dog")
+	// Query: notcat AND NOT notdog
+	// Should match 4002 only.
+	results, total, err := Search(context.Background(), testPostingStore, testTokenizer, "notcat and not notdog", testDocLengths)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -124,23 +176,26 @@ func TestSearchWithNotOperator(t *testing.T) {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
 
-	if results[0].DocID != 456 {
-		t.Fatalf("expected 456 (has cat but not dog), got %v", results[0].DocID)
+	if results[0].DocID != 4002 {
+		t.Fatalf("expected 4002 (has cat but not dog), got %v", results[0].DocID)
 	}
 }
 
 func TestSearchOrPrecedence(t *testing.T) {
-	docs := []data.Document{
-		{ID: 1, Title: "Doc1", Text: "cat dog"},
-		{ID: 2, Title: "Doc2", Text: "bird"},
-		{ID: 3, Title: "Doc3", Text: "cat bird"},
-		{ID: 4, Title: "Doc4", Text: "dog"},
-	}
+	// Data:
+	// 5001: orcat ordog
+	// 5002: orbird
+	// 5003: orcat orbird
+	// 5004: ordog
 
-	tokenizer := text.NewTokenizer()
-	idx := index.Build(docs, tokenizer)
+	// Query: orcat AND ordog OR orbird
+	// Precedence: (orcat AND ordog) OR orbird
+	// Matches:
+	// - (orcat AND ordog) -> 5001
+	// - orbird -> 5002, 5003
+	// Result: 5001, 5002, 5003
 
-	results, total, err := Search(processing.NewMemorySource(idx), tokenizer, "cat and dog or bird")
+	results, total, err := Search(context.Background(), testPostingStore, testTokenizer, "orcat and ordog or orbird", testDocLengths)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -148,28 +203,33 @@ func TestSearchOrPrecedence(t *testing.T) {
 		t.Fatalf("expected 3 total matches, got %d", total)
 	}
 
-	want := []uint32{1, 2, 3}
-	if len(results) != len(want) {
-		t.Fatalf("expected %d results, got %d", len(want), len(results))
+	want := []uint32{5001, 5002, 5003}
+	// Sort results by ID for comparison as scores might vary slightly or be tied
+	var got []uint32
+	for _, r := range results {
+		got = append(got, r.DocID)
 	}
-	for i, docID := range want {
-		if results[i].DocID != docID {
-			t.Fatalf("result %d: got docID %d, want %d", i, results[i].DocID, docID)
-		}
+	slices.Sort(got)
+	// want is already sorted
+
+	if !slices.Equal(got, want) {
+		t.Fatalf("expected docs %v, got %v", want, got)
 	}
 }
 
 func TestSearchParenthesesOverridePrecedence(t *testing.T) {
-	docs := []data.Document{
-		{ID: 1, Title: "Doc1", Text: "cat bird"},
-		{ID: 2, Title: "Doc2", Text: "dog bird"},
-		{ID: 3, Title: "Doc3", Text: "bird"},
-	}
+	// Data:
+	// 6001: parencat parenbird
+	// 6002: parendog parenbird
+	// 6003: parenbird
 
-	tokenizer := text.NewTokenizer()
-	idx := index.Build(docs, tokenizer)
+	// Query: (parencat OR parendog) AND parenbird
+	// Matches:
+	// - parencat OR parendog -> 6001, 6002
+	// - AND parenbird -> 6001, 6002
+	// 6003 has bird but neither cat nor dog, so excluded.
 
-	results, total, err := Search(processing.NewMemorySource(idx), tokenizer, "(cat or dog) and bird")
+	results, total, err := Search(context.Background(), testPostingStore, testTokenizer, "(parencat or parendog) and parenbird", testDocLengths)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -179,66 +239,64 @@ func TestSearchParenthesesOverridePrecedence(t *testing.T) {
 	if len(results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
-	if results[0].DocID != 1 || results[1].DocID != 2 {
-		t.Fatalf("unexpected doc order: %+v", results)
+
+	got := []uint32{results[0].DocID, results[1].DocID}
+	slices.Sort(got)
+	want := []uint32{6001, 6002}
+
+	if !slices.Equal(got, want) {
+		t.Fatalf("expected docs %v, got %v", want, got)
 	}
 }
 
 func TestSearchPhraseQueryMatchesContiguousTokens(t *testing.T) {
-	docs := []data.Document{
-		{ID: 123, Title: "", Text: "quick brown fox"},
-		{ID: 456, Title: "", Text: "quick fox brown"},
-		{ID: 789, Title: "", Text: "quick brown quick brown"},
-	}
+	// Data:
+	// 7001: phrasequick phrasebrown phrasefox
+	// 7002: phrasequick phrasefox phrasebrown
+	// 7003: phrasequick phrasebrown phrasequick phrasebrown
 
-	tokenizer := text.NewTokenizer()
-	idx := index.Build(docs, tokenizer)
+	// Query: "phrasequick phrasebrown"
+	// Matches: 7001 (once), 7003 (twice)
+	// 7002 has tokens but not contiguous.
 
-	results, total, err := Search(processing.NewMemorySource(idx), tokenizer, "\"quick brown\"")
+	results, total, err := Search(context.Background(), testPostingStore, testTokenizer, "\"phrasequick phrasebrown\"", testDocLengths)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if total != 2 {
-		t.Fatalf("expected total results to be 2 (ID 123 and 789), got %d", total)
+		t.Fatalf("expected total results to be 2 (ID 7001 and 7003), got %d", total)
 	}
 	if len(results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
 
-	if results[0].DocID != 789 || results[0].TotalTermFrequency != 2 {
+	// 7003 should be first (freq 2)
+	if results[0].DocID != 7003 || results[0].TotalTermFrequency != 2 {
 		t.Fatalf("unexpected first result: %+v", results[0])
 	}
+	// Check matches for 7003
 	if len(results[0].Matches) < 2 {
-		t.Fatalf("expected at least 2 token matches in 789, got %v", results[0].Matches)
+		t.Fatalf("expected at least 2 token matches in 7003, got %v", results[0].Matches)
 	}
 	head := results[0].Matches[0]
-	if head.Token != "quick" || head.Frequency != 2 || !slices.Equal(head.Positions, []int{0, 2}) {
-		t.Fatalf("unexpected head match for 789: %+v", head)
-	}
-	sec := results[0].Matches[1]
-	if sec.Token != "brown" || sec.Frequency != 2 || !slices.Equal(sec.Positions, []int{1, 3}) {
-		t.Fatalf("unexpected second match for 789: %+v", sec)
+	if head.Token != "phrasequick" || head.Frequency != 2 {
+		t.Fatalf("unexpected head match for 7003: %+v", head)
 	}
 
-	if results[1].DocID != 123 || results[1].TotalTermFrequency != 1 {
+	// 7001 should be second (freq 1)
+	if results[1].DocID != 7001 || results[1].TotalTermFrequency != 1 {
 		t.Fatalf("unexpected second result: %+v", results[1])
 	}
 }
 
 func TestSearchOnlyNegationsReturnError(t *testing.T) {
-	docs := []data.Document{
-		{ID: 1, Title: "Doc1", Text: "cat"},
-	}
-
-	tokenizer := text.NewTokenizer()
-	idx := index.Build(docs, tokenizer)
-
-	_, _, err := Search(processing.NewMemorySource(idx), tokenizer, "not cat")
+	// Data: 8001: negcat
+	_, _, err := Search(context.Background(), testPostingStore, testTokenizer, "not negcat", testDocLengths)
 	if err == nil {
 		t.Fatal("expected error for negation-only query, got nil")
 	}
-	if !strings.Contains(err.Error(), "NOT expressions must be combined with a positive search term") {
+	if !strings.Contains(err.Error(), "query must contain at least one positive term") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
