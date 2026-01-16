@@ -23,6 +23,7 @@ dev = [
 [tool.ruff]
 line-length = 88
 target-version = "py310"
+exclude = ["*_pb2.py", "*_pb2_grpc.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
