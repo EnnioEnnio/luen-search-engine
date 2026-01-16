@@ -3,11 +3,13 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
@@ -58,6 +60,8 @@ func main() {
 	diskCache := flag.Int("diskcache", 2048, "Number of posting lists to cache")
 	cpuprofile := flag.String("cpuprofile", "", "Write CPU profile to file")
 	memprofile := flag.String("memprofile", "", "Write memory profile to file")
+	// Server mode
+	serverMode := flag.Bool("server", false, "Start HTTP server")
 	enableSynonyms := flag.Bool("enableSynonyms", false, "Enable synonym expansion using the SPLADE-like model")
 	flag.Parse()
 
@@ -136,8 +140,12 @@ func main() {
 		defer cleanup[i]()
 	}
 
-	var synonymExpander *synonyms.SpladeLike
+	if *serverMode {
+		startServer(postingSource, docLookup, tokenizer, docLengths)
+		return
+	}
 
+	var synonymExpander *synonyms.SpladeLike
 	if *enableSynonyms {
 		se, err := synonyms.NewSpladeLike()
 		if err != nil {
@@ -191,6 +199,68 @@ func main() {
 
 		output.PrintResults(semanticResults, bm25Results, docLookup, total, searchTime, docLengths)
 	}
+}
+
+func startServer(postingSource *disk.PostingStore, docLookup *data.DocumentStore, tokenizer *text.Tokenizer, docLengths map[search.DocID]search.FieldDocLength) {
+	http.Handle("/", http.FileServer(http.Dir("./static")))
+
+	http.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query().Get("q")
+		if query == "" {
+			http.Error(w, "Missing query parameter 'q'", http.StatusBadRequest)
+			return
+		}
+
+		start := time.Now()
+		results, total, err := search.Search(r.Context(), postingSource, tokenizer, strings.ToLower(query), docLengths)
+		duration := time.Since(start)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		type Result struct {
+			ID      string `json:"id"`
+			Title   string `json:"title"`
+			URL     string `json:"url"`
+			Content string `json:"content"`
+			Score   int    `json:"score"`
+		}
+
+		type Response struct {
+			Results  []Result `json:"results"`
+			Total    int      `json:"total"`
+			Duration string   `json:"duration"`
+		}
+
+		var jsonResults []Result
+		for _, res := range results {
+			doc, ok := docLookup.Lookup(res.DocID)
+			if !ok {
+				continue
+			}
+			jsonResults = append(jsonResults, Result{
+				ID:      fmt.Sprint(res.DocID),
+				Title:   doc.Title,
+				URL:     doc.URL,
+				Content: doc.Text,
+				Score:   res.TotalTermFrequency,
+			})
+		}
+
+		resp := Response{
+			Results:  jsonResults,
+			Total:    total,
+			Duration: duration.String(),
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	})
+
+	fmt.Println("Server started at http://localhost:8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func ensureDiskIndex(dir, dataPath string, limit int, tokenizer *text.Tokenizer, batchBytes int64) error {

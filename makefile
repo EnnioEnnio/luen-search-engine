@@ -30,6 +30,12 @@ dev: build ## Build and run the binary with a smaller corpus (10000).
 run: build ## Build and run the binary using the on-disk index (auto-builds 100k docs if missing).
 	./$(BIN_DIR)/$(BINARY) -disklimit 100000
 
+start: build ## Start the HTTP server using the on-disk index.
+	./$(BIN_DIR)/$(BINARY) -server -disk true
+
+frontend: ## Compile TypeScript frontend.
+	npx -y -p typescript tsc
+
 bench: ## Run deterministic index + query benchmarks against the 100k MS MARCO subset.
 	@if [ ! -f data/msmarco-docs-bench-100000.tsv ]; then \
 		echo "Missing benchmark dataset at data/msmarco-docs-bench-100000.tsv"; \
