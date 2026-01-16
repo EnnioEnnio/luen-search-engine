@@ -78,10 +78,10 @@ class SemanticSearchService(search_pb2_grpc.SemanticEmbeddingServiceServicer):
             
         emb = F.normalize(emb, p=2, dim=1)
         
-        query_vec = emb.cpu().numpy()[0] # Shape (768,)
+        query_vec = emb.cpu().numpy()[0]  # Shape (stored_dim,)
         
         # Calculate scores (Dot product)
-        # matrix: (N, 768), query: (768,) -> scores: (N,)
+        # matrix: (N, stored_dim), query: (stored_dim,) -> scores: (N,)
         scores = np.dot(self.embeddings, query_vec)
         
         # Find top k
