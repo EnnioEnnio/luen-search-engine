@@ -78,7 +78,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestSearchReturnsErrorOnEmptyQuery(t *testing.T) {
-	_, _, _, err := Search(context.Background(), testPostingStore, testTokenizer, "", testDocLengths)
+	_, _, _, err := Search(context.Background(), testPostingStore, testTokenizer, nil, "", testDocLengths)
 	if err == nil {
 		t.Fatal("expected error for empty query, got nil")
 	}
@@ -93,7 +93,7 @@ func TestSearchSingleTermRanksByFrequency(t *testing.T) {
 	// 1002: rankengine ranksearch (search:1, engine:1)
 	// 1003: ranksearch ranksearch rankengine (search:2, engine:1)
 
-	_, results, total, err := Search(context.Background(), testPostingStore, testTokenizer, "ranksearch rankengine", testDocLengths)
+	_, results, total, err := Search(context.Background(), testPostingStore, testTokenizer, nil, "ranksearch rankengine", testDocLengths)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestSearchSingleTermRanksByFrequency(t *testing.T) {
 
 func TestSearchMissingTokenReturnsNil(t *testing.T) {
 	// Data: 2001: misssearch missterm
-	_, results, total, err := Search(context.Background(), testPostingStore, testTokenizer, "missingtokenxyz", testDocLengths)
+	_, results, total, err := Search(context.Background(), testPostingStore, testTokenizer, nil, "missingtokenxyz", testDocLengths)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -144,7 +144,7 @@ func TestSearchMissingTokenReturnsNil(t *testing.T) {
 
 func TestSearchLimitsToTopTenResults(t *testing.T) {
 	// Data: 3000-3010 (11 docs) all have "limitterm"
-	_, results, total, err := Search(context.Background(), testPostingStore, testTokenizer, "limitterm", testDocLengths)
+	_, results, total, err := Search(context.Background(), testPostingStore, testTokenizer, nil, "limitterm", testDocLengths)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -164,7 +164,7 @@ func TestSearchWithNotOperator(t *testing.T) {
 
 	// Query: notcat AND NOT notdog
 	// Should match 4002 only.
-	_, results, total, err := Search(context.Background(), testPostingStore, testTokenizer, "notcat and not notdog", testDocLengths)
+	_, results, total, err := Search(context.Background(), testPostingStore, testTokenizer, nil, "notcat and not notdog", testDocLengths)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -195,7 +195,7 @@ func TestSearchOrPrecedence(t *testing.T) {
 	// - orbird -> 5002, 5003
 	// Result: 5001, 5002, 5003
 
-	results, total, err := Search(context.Background(), testPostingStore, testTokenizer, "orcat and ordog or orbird", testDocLengths)
+	_, results, total, err := Search(context.Background(), testPostingStore, testTokenizer, nil, "orcat and ordog or orbird", testDocLengths)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -229,7 +229,7 @@ func TestSearchParenthesesOverridePrecedence(t *testing.T) {
 	// - AND parenbird -> 6001, 6002
 	// 6003 has bird but neither cat nor dog, so excluded.
 
-	results, total, err := Search(context.Background(), testPostingStore, testTokenizer, "(parencat or parendog) and parenbird", testDocLengths)
+	_, results, total, err := Search(context.Background(), testPostingStore, testTokenizer, nil, "(parencat or parendog) and parenbird", testDocLengths)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -259,7 +259,7 @@ func TestSearchPhraseQueryMatchesContiguousTokens(t *testing.T) {
 	// Matches: 7001 (once), 7003 (twice)
 	// 7002 has tokens but not contiguous.
 
-	results, total, err := Search(context.Background(), testPostingStore, testTokenizer, "\"phrasequick phrasebrown\"", testDocLengths)
+	_, results, total, err := Search(context.Background(), testPostingStore, testTokenizer, nil, "\"phrasequick phrasebrown\"", testDocLengths)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -292,7 +292,7 @@ func TestSearchPhraseQueryMatchesContiguousTokens(t *testing.T) {
 
 func TestSearchOnlyNegationsReturnError(t *testing.T) {
 	// Data: 8001: negcat
-	_, _, err := Search(context.Background(), testPostingStore, testTokenizer, "not negcat", testDocLengths)
+	_, _, _, err := Search(context.Background(), testPostingStore, testTokenizer, nil, "not negcat", testDocLengths)
 	if err == nil {
 		t.Fatal("expected error for negation-only query, got nil")
 	}

@@ -68,7 +68,7 @@ function renderResults(semanticResults, bm25Results, total, duration) {
     const semanticColumn = document.createElement('div');
     semanticColumn.className = 'results-column';
     const semanticHeader = document.createElement('h2');
-    semanticHeader.textContent = 'Semantic Search Results';
+    semanticHeader.textContent = '🔮 Semantic Search Results';
     semanticColumn.appendChild(semanticHeader);
     if (semanticResults && semanticResults.length > 0) {
         semanticResults.forEach((result, index) => {
@@ -84,7 +84,7 @@ function renderResults(semanticResults, bm25Results, total, duration) {
     const bm25Column = document.createElement('div');
     bm25Column.className = 'results-column';
     const bm25Header = document.createElement('h2');
-    bm25Header.textContent = 'BM25 Results';
+    bm25Header.textContent = '📊 BM25 Results';
     bm25Column.appendChild(bm25Header);
     if (bm25Results && bm25Results.length > 0) {
         bm25Results.forEach((result, index) => {
@@ -97,8 +97,8 @@ function renderResults(semanticResults, bm25Results, total, duration) {
         noResults.textContent = 'No BM25 results';
         bm25Column.appendChild(noResults);
     }
-    columnsContainer.appendChild(bm25Column);
     columnsContainer.appendChild(semanticColumn);
+    columnsContainer.appendChild(bm25Column);
     resultsContainer.appendChild(columnsContainer);
 }
 function createResultCard(result, index) {

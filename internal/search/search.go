@@ -164,19 +164,10 @@ func SearchWithBM25(ctx context.Context, src *disk.PostingStore, tokenizer *text
 	return results, resCount, nil
 }
 
-// SemanticSearcher defines the interface for semantic search operations.
-// This interface allows for easy mocking in tests.
 type SemanticSearcher interface {
 	Search(ctx context.Context, query string, k int32) ([]Result, error)
 }
 
-// Ensure the real implementation satisfies the interface
-// Note: The actual gRPC client (pb.SemanticEmbeddingServiceClient) doesn't perfectly match this signature
-// so we'll likely need a wrapper struct if we want to strictly use this interface,
-// or we can pass the pb client directly if we don't mind coupling.
-// Better approach: Define the interface we want to use in our core logic.
-
-// SemanticClient wraps the gRPC client to satisfy the SemanticSearcher interface.
 type SemanticClient struct {
 	Client pb.SemanticEmbeddingServiceClient
 }
@@ -200,15 +191,12 @@ func (s *SemanticClient) Search(ctx context.Context, query string, k int32) ([]R
 	return results, nil
 }
 
-// SemanticSearch performs a semantic search using the provided client.
 func SemanticSearch(ctx context.Context, client SemanticSearcher, query string) (results []Result, count int, e error) {
 	if client == nil {
-		// Log warning or return empty if no client configured
 		return nil, 0, nil
 	}
 
-	// Request top 100 results from semantic search to allow for re-ranking or broader context
-	semanticResults, err := client.Search(ctx, query, 100)
+	semanticResults, err := client.Search(ctx, query, 10)
 	if err != nil {
 		return nil, 0, fmt.Errorf("semantic search failed: %w", err)
 	}
