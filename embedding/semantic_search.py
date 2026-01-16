@@ -87,7 +87,7 @@ class SemanticSearchService(search_pb2_grpc.SemanticEmbeddingServiceServicer):
         # Find top k
         # argpartition is O(n) average case
         if k >= len(scores):
-             top_indices = np.argsort(scores)[::-1]
+            top_indices = np.argsort(scores)[::-1]
         else:
             partitioned_indices = np.argpartition(scores, -k)[-k:]
             # The top k are not sorted, so we sort them explicitly
