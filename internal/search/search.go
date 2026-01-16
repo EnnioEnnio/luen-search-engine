@@ -33,25 +33,25 @@ func Search(ctx context.Context, src *disk.PostingStore, tokenizer *text.Tokeniz
 	if query == "" {
 		return nil, nil, 0, fmt.Errorf("query must not be empty")
 	}
-	BM25Results := make(chan Response, 1)
-	SemanticResults := make(chan Response, 1)
+	bm25ResultsChan := make(chan Response, 1)
+	semanticResultsChan := make(chan Response, 1)
 
 	// BM25 search
 	go func() {
 		results, resCount, err := SearchWithBM25(ctx, src, tokenizer, query, docLengths, expander...)
-		BM25Results <- Response{Results: results, Count: resCount, Error: err}
+		bm25ResultsChan <- Response{Results: results, Count: resCount, Error: err}
 	}()
 	// Semantic search
 	go func() {
 		results, resCount, err := SemanticSearch(ctx, semanticClient, query)
-		SemanticResults <- Response{Results: results, Count: resCount, Error: err}
+		semanticResultsChan <- Response{Results: results, Count: resCount, Error: err}
 	}()
 
-	bm25Res := <-BM25Results
+	bm25Res := <-bm25ResultsChan
 	if bm25Res.Error != nil {
 		return nil, nil, 0, bm25Res.Error
 	}
-	semanticRes := <-SemanticResults
+	semanticRes := <-semanticResultsChan
 	if semanticRes.Error != nil {
 		log.Printf("semantic search failed (continuing with BM25 results): %v", semanticRes.Error)
 		semanticRes.Results = nil
