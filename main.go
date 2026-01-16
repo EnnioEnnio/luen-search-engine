@@ -2,8 +2,8 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -141,11 +141,11 @@ func main() {
 	}
 
 	if *serverMode {
-		startServer(postingSource, docLookup, tokenizer)
+		startServer(postingSource, docLookup, tokenizer, docLengths)
 		return
-	var synonymExpander *synonyms.SpladeLike
-  }
+	}
 
+	var synonymExpander *synonyms.SpladeLike
 	if *enableSynonyms {
 		se, err := synonyms.NewSpladeLike()
 		if err != nil {
@@ -200,7 +200,7 @@ func main() {
 	}
 }
 
-func startServer(postingSource index.PostingSource, docLookup data.DocumentLookup, tokenizer *text.Tokenizer) {
+func startServer(postingSource *disk.PostingStore, docLookup *data.DocumentStore, tokenizer *text.Tokenizer, docLengths map[search.DocID]search.FieldDocLength) {
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 
 	http.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
@@ -211,7 +211,7 @@ func startServer(postingSource index.PostingSource, docLookup data.DocumentLooku
 		}
 
 		start := time.Now()
-		results, total, err := search.Search(postingSource, tokenizer, strings.ToLower(query))
+		results, total, err := search.Search(r.Context(), postingSource, tokenizer, strings.ToLower(query), docLengths)
 		duration := time.Since(start)
 
 		if err != nil {
