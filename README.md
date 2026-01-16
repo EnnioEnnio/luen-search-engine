@@ -27,7 +27,7 @@ and provides a CLI search interface across query terms.
 
 - Go 1.25+
 - The `msmarco-docs.tsv` [dataset](https://microsoft.github.io/msmarco/Datasets.html#datasets). Place it anywhere convenient – by default the program looks for `data/msmarco-docs-preprocessed.tsv`.
-- **Python 3.8+** with [uv](https://docs.astral.sh/uv/) package manager (for semantic search features)
+- **Python 3.10+** with [uv](https://docs.astral.sh/uv/) package manager (for semantic search features)
 
 For Benchmarking:
 - A benchmark subset at `data/msmarco-docs-bench-100000.tsv` (first 100k rows). You can create it with `head -n 100000 data/msmarco-docs.tsv > data/msmarco-docs-bench-100000.tsv`.
