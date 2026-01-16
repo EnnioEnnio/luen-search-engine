@@ -4,9 +4,25 @@ version = "0.1.0"
 description = "Embedding generation service for Luen Search Engine"
 requires-python = ">=3.10"
 dependencies = [
+    "tqdm",
+    "grpcio",
+    "grpcio-tools",
+    "protobuf",
     "torch",
     "transformers",
-    "numpy",
     "einops",
-    "tqdm",
+    "numpy", 
 ]
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "pytest",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

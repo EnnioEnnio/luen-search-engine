@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package search;
+
+option go_package = "internal/pb";
+
+// SemanticSearchService provides helper functions for semantic search.
+service SemanticEmbeddingService {
+    // Search returns the most relevant documents for the given query.
+    rpc Search (SearchRequest) returns (SearchResponse);
+}
+
+message SearchRequest {
+    string query = 1;
+    int32 k = 2; // Number of results to return
+}
+
+message SearchResponse {
+    message Result {
+        uint32 doc_id = 1;
+        float score = 2;
+    }
+    repeated Result results = 1;
+    // We can add error string here if needed, or rely on gRPC errors
+}

@@ -8,6 +8,7 @@ import (
 	"luen-search-engine/internal/index"
 	"luen-search-engine/internal/index/disk"
 	"luen-search-engine/internal/model"
+	"luen-search-engine/internal/pb"
 	"luen-search-engine/internal/processing"
 	"luen-search-engine/internal/ranking"
 	"luen-search-engine/internal/synonyms"
@@ -27,7 +28,7 @@ type Response struct {
 }
 
 // Search finds documents that contain all query tokens and orders them by frequency.
-func Search(ctx context.Context, src *disk.PostingStore, tokenizer *text.Tokenizer, query string, docLengths map[DocID]FieldDocLength, expander ...*synonyms.SpladeLike) (semanticResults []Result, bm25Results []Result, bm25Count int, e error) {
+func Search(ctx context.Context, src *disk.PostingStore, tokenizer *text.Tokenizer, semanticClient SemanticSearcher, query string, docLengths map[DocID]FieldDocLength, expander ...*synonyms.SpladeLike) (semanticResults []Result, bm25Results []Result, bm25Count int, e error) {
 	if query == "" {
 		return nil, nil, 0, fmt.Errorf("query must not be empty")
 	}
@@ -41,7 +42,7 @@ func Search(ctx context.Context, src *disk.PostingStore, tokenizer *text.Tokeniz
 	}()
 	// Semantic search
 	go func() {
-		results, resCount, err := SemanticSearch(ctx, query)
+		results, resCount, err := SemanticSearch(ctx, semanticClient, query)
 		SemanticResults <- Response{Results: results, Count: resCount, Error: err}
 	}()
 
@@ -162,22 +163,55 @@ func SearchWithBM25(ctx context.Context, src *disk.PostingStore, tokenizer *text
 
 	return results, resCount, nil
 }
-func SemanticSearch(ctx context.Context, query string) (results []Result, count int, e error) {
-	// Placeholder implementation for semantic search
-	// sends query string to python service for embedding
-	// receives top-k results with relevance scores
-	// add some dummy results for now to test the output
-	dummyResults := []Result{
-		{DocID: 42, Score: 0.95},
-		{DocID: 7, Score: 0.89},
-		{DocID: 13, Score: 0.85},
-		{DocID: 99, Score: 0.80},
-		{DocID: 21, Score: 0.75},
-		{DocID: 33, Score: 0.70},
-		{DocID: 55, Score: 0.65},
-		{DocID: 78, Score: 0.60},
-		{DocID: 88, Score: 0.55},
-		{DocID: 100, Score: 0.50},
+
+// SemanticSearcher defines the interface for semantic search operations.
+// This interface allows for easy mocking in tests.
+type SemanticSearcher interface {
+	Search(ctx context.Context, query string, k int32) ([]Result, error)
+}
+
+// Ensure the real implementation satisfies the interface
+// Note: The actual gRPC client (pb.SemanticEmbeddingServiceClient) doesn't perfectly match this signature
+// so we'll likely need a wrapper struct if we want to strictly use this interface,
+// or we can pass the pb client directly if we don't mind coupling.
+// Better approach: Define the interface we want to use in our core logic.
+
+// SemanticClient wraps the gRPC client to satisfy the SemanticSearcher interface.
+type SemanticClient struct {
+	Client pb.SemanticEmbeddingServiceClient
+}
+
+func (s *SemanticClient) Search(ctx context.Context, query string, k int32) ([]Result, error) {
+	resp, err := s.Client.Search(ctx, &pb.SearchRequest{
+		Query: query,
+		K:     k,
+	})
+	if err != nil {
+		return nil, err
 	}
-	return dummyResults, len(dummyResults), nil
+
+	results := make([]Result, len(resp.Results))
+	for i, r := range resp.Results {
+		results[i] = Result{
+			DocID: DocID(r.DocId),
+			Score: float64(r.Score),
+		}
+	}
+	return results, nil
+}
+
+// SemanticSearch performs a semantic search using the provided client.
+func SemanticSearch(ctx context.Context, client SemanticSearcher, query string) (results []Result, count int, e error) {
+	if client == nil {
+		// Log warning or return empty if no client configured
+		return nil, 0, nil
+	}
+
+	// Request top 100 results from semantic search to allow for re-ranking or broader context
+	semanticResults, err := client.Search(ctx, query, 100)
+	if err != nil {
+		return nil, 0, fmt.Errorf("semantic search failed: %w", err)
+	}
+
+	return semanticResults, len(semanticResults), nil
 }

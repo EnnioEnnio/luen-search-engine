@@ -4,6 +4,8 @@ GO ?= go
 BIN_DIR := bin
 BINARY := luen
 INDEX_DIR := index
+EMBED_DIR := embedding
+EMBED_OUTPUT := output
 
 build: ## Build the project binary.
 	@mkdir -p $(BIN_DIR)
@@ -50,15 +52,18 @@ bench: ## Run deterministic index + query benchmarks against the 100k MS MARCO s
 	$(GO) test ./internal/index ./internal/indexer ./internal/search -run=^$$ -bench=. -benchmem
 
 embed: setup-python ## Generate embeddings for the dataset using the python script.
-	cd embedding && uv run python create_embedding.py --data ../data/msmarco-docs-preprocessed.tsv --output-dir output --batch-size 10
+	cd embedding && uv run python create_embedding.py --data ../data/msmarco-docs-preprocessed.tsv --output-dir $(EMBED_OUTPUT) --batch-size 10
+
+serve-embedding: setup-python ## Run the semantic search gRPC service.
+	cd embedding && uv run python semantic_search.py
 
 setup-python: ## Install python dependencies using uv.
 	cd embedding && uv sync
 
-
 clean: ## Remove build artifacts.
 	rm -rf $(BIN_DIR)
 	rm -rf $(INDEX_DIR)
+	rm -rf $(EMBED_DIR)/$(EMBED_OUTPUT)
 
 help: ## Show available make targets.
 	@awk -F':.*##' '/^[a-zA-Z][a-zA-Z0-9_-]*:.*##/ {printf "%-10s %s\n", $$1, $$2}' $(MAKEFILE_LIST)

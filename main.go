@@ -22,9 +22,13 @@ import (
 	"luen-search-engine/internal/index/disk"
 	"luen-search-engine/internal/indexer"
 	"luen-search-engine/internal/output"
+	"luen-search-engine/internal/pb"
 	"luen-search-engine/internal/search"
 	"luen-search-engine/internal/synonyms"
 	"luen-search-engine/internal/text"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Profiler memory dump
@@ -155,6 +159,17 @@ func main() {
 		fmt.Println("Synonym Expander model loaded.")
 	}
 
+	// gRPC Client setup
+	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Printf("Failed to create semantic search client: %v. Semantic search will be disabled.", err)
+	} else {
+		defer conn.Close()
+	}
+	semanticClient := &search.SemanticClient{
+		Client: pb.NewSemanticEmbeddingServiceClient(conn),
+	}
+
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("Your Search Engine is ready! Type a search term to use it, >exit to quit")
 
@@ -187,9 +202,9 @@ func main() {
 			total           int
 		)
 		if *enableSynonyms && synonymExpander != nil {
-			semanticResults, bm25Results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm, docLengths, synonymExpander)
+			semanticResults, bm25Results, total, err = search.Search(ctx, postingSource, tokenizer, semanticClient, searchTerm, docLengths, synonymExpander)
 		} else {
-			semanticResults, bm25Results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm, docLengths)
+			semanticResults, bm25Results, total, err = search.Search(ctx, postingSource, tokenizer, semanticClient, searchTerm, docLengths)
 		}
 		searchTime := time.Since(searchStart)
 		if err != nil {
