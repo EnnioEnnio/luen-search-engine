@@ -31,7 +31,7 @@ run: build ## Build and run the binary using the on-disk index (auto-builds 100k
 	./$(BIN_DIR)/$(BINARY) -disklimit 100000
 
 start: build ## Start the HTTP server using the on-disk index.
-	./$(BIN_DIR)/$(BINARY) -server -disk true
+	./$(BIN_DIR)/$(BINARY) -server
 
 frontend: ## Compile TypeScript frontend.
 	npx -y -p typescript tsc
