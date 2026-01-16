@@ -145,14 +145,15 @@ func main() {
 	}
 
 	// gRPC Client setup for semantic search
+	var semanticClient *search.SemanticClient
 	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Printf("Failed to create semantic search client: %v. Semantic search will be disabled.", err)
 	} else {
 		defer conn.Close()
-	}
-	semanticClient := &search.SemanticClient{
-		Client: pb.NewSemanticEmbeddingServiceClient(conn),
+		semanticClient = &search.SemanticClient{
+			Client: pb.NewSemanticEmbeddingServiceClient(conn),
+		}
 	}
 
 	if *serverMode {

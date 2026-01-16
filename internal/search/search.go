@@ -3,6 +3,7 @@ package search
 import (
 	"context"
 	"fmt"
+	"log"
 	"sort"
 
 	"luen-search-engine/internal/index"
@@ -52,7 +53,8 @@ func Search(ctx context.Context, src *disk.PostingStore, tokenizer *text.Tokeniz
 	}
 	semanticRes := <-SemanticResults
 	if semanticRes.Error != nil {
-		return nil, nil, 0, semanticRes.Error
+		log.Printf("semantic search failed (continuing with BM25 results): %v", semanticRes.Error)
+		semanticRes.Results = nil
 	}
 
 	// return top 10 bm25-results

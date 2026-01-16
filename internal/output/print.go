@@ -40,7 +40,7 @@ func PrintResults(semanticResults []Result, bm25Results []Result, lookup *data.D
 		if i == len(bm25Results)-1 {
 			lastResult = true
 		}
-		printReult(result, i, doc, DocLengths, lastResult)
+		printResult(result, i, doc, DocLengths, lastResult)
 	}
 
 	fmt.Printf("%s%s%s\n", colorCyan, strings.Repeat("═", 80), colorReset)
@@ -57,14 +57,14 @@ func PrintResults(semanticResults []Result, bm25Results []Result, lookup *data.D
 			if i == len(semanticResults)-1 {
 				lastResult = true
 			}
-			printReult(sResult, i, doc, DocLengths, lastResult)
+			printResult(sResult, i, doc, DocLengths, lastResult)
 		}
 	}
 
 	fmt.Printf("%s%s%s\n", colorCyan, strings.Repeat("═", 80), colorReset)
 }
 
-func printReult(result Result, i int, doc data.Document, DocLengths map[model.DocID]model.FieldDocLengths, lastResult bool) {
+func printResult(result Result, i int, doc data.Document, DocLengths map[model.DocID]model.FieldDocLengths, lastResult bool) {
 	fmt.Printf("\n[%d] %s\n", i+1, doc.Title)
 	fmt.Printf("    🔗 %s\n", doc.URL)
 
