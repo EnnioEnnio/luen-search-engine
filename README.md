@@ -197,7 +197,7 @@ cd embedding && uv run python create_embedding.py \
   --dim <int>             # Embedding dimension (default: 64, max: 768)
 ```
 
-Or: use our included embeddings for the first 50.000 documents. You can find these in `embedding/output/`
+Or: use our included embeddings for the first 50,000 documents. You can find these in `embedding/output/`
 
 3. Start the gRPC semantic search service:
 ```bash

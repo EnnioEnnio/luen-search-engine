@@ -51,7 +51,7 @@ class SemanticSearchService(search_pb2_grpc.SemanticEmbeddingServiceServicer):
 
     def Search(self, request, context):
         if self.embeddings is None:
-             return search_pb2.SearchResponse(results=[])
+            return search_pb2.SearchResponse(results=[])
 
         query = request.query
         k = request.k
