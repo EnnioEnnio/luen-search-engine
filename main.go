@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"luen-search-engine/internal/ai"
 	"luen-search-engine/internal/data"
 	"luen-search-engine/internal/index"
 	"luen-search-engine/internal/index/disk"
@@ -220,6 +221,12 @@ func main() {
 func startServer(ctx context.Context, postingSource *disk.PostingStore, docLookup *data.DocumentStore, tokenizer *text.Tokenizer, docLengths map[search.DocID]search.FieldDocLength, semanticClient *search.SemanticClient) {
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 
+	openAIKey := os.Getenv("OPENAI_API_KEY")
+	openAIModel := os.Getenv("OPENAI_MODEL")
+	if openAIModel == "" {
+		openAIModel = ai.DefaultSummaryModel
+	}
+
 	http.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query().Get("q")
 		if query == "" {
@@ -286,6 +293,53 @@ func startServer(ctx context.Context, postingSource *disk.PostingStore, docLooku
 			BM25Results:     jsonBM25Results,
 			Total:           total,
 			Duration:        duration.String(),
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	})
+
+	http.HandleFunc("/api/summary", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req struct {
+			Query   string             `json:"query"`
+			Results []ai.SummaryResult `json:"results"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+		if strings.TrimSpace(req.Query) == "" {
+			http.Error(w, "Missing query", http.StatusBadRequest)
+			return
+		}
+
+		summaryStart := time.Now()
+		summary := "No results available to summarize yet."
+		var err error
+		if len(req.Results) > 0 {
+			summaryCtx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+			defer cancel()
+			summary, err = ai.GenerateSummary(summaryCtx, openAIKey, openAIModel, req.Query, req.Results)
+		}
+		duration := time.Since(summaryStart)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		resp := struct {
+			Summary  string `json:"summary"`
+			Model    string `json:"model,omitempty"`
+			Duration string `json:"duration"`
+		}{
+			Summary:  summary,
+			Model:    openAIModel,
+			Duration: duration.String(),
 		}
 
 		w.Header().Set("Content-Type", "application/json")

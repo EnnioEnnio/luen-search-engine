@@ -10,6 +10,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 const searchInput = document.getElementById('search-input');
 const resultsContainer = document.getElementById('results-container');
+const summaryText = document.getElementById('summary-text');
+const summaryStatus = document.getElementById('summary-status');
 const searchIcon = document.querySelector('.search-icon');
 if (searchInput && resultsContainer) {
     searchInput.addEventListener('keydown', (e) => {
@@ -35,6 +37,7 @@ function performSearch(query) {
         if (!resultsContainer)
             return;
         try {
+            setSummaryLoading();
             const response = yield fetch(`/api/search?q=${encodeURIComponent(query)}`);
             if (!response.ok) {
                 throw new Error('Network response was not ok');
@@ -44,10 +47,85 @@ function performSearch(query) {
             console.log('Semantic results:', ((_a = data.semantic_results) === null || _a === void 0 ? void 0 : _a.length) || 0);
             console.log('BM25 results:', ((_b = data.bm25_results) === null || _b === void 0 ? void 0 : _b.length) || 0);
             renderResults(data.semantic_results, data.bm25_results, data.total, data.duration);
+            void fetchSummary(query, data.semantic_results, data.bm25_results);
         }
         catch (error) {
             console.error('Error fetching search results:', error);
             resultsContainer.innerHTML = '<div class="no-results">An error occurred while searching.</div>';
+            setSummaryError();
+        }
+    });
+}
+function setSummaryLoading() {
+    if (summaryStatus) {
+        summaryStatus.textContent = 'Generating';
+    }
+    if (summaryText) {
+        summaryText.textContent = 'Generating an AI summary based on the results...';
+        summaryText.classList.add('is-loading');
+    }
+}
+function setSummaryError() {
+    if (summaryStatus) {
+        summaryStatus.textContent = 'Unavailable';
+    }
+    if (summaryText) {
+        summaryText.textContent = 'Summary unavailable right now. Please try again later.';
+        summaryText.classList.add('is-loading');
+    }
+}
+function setSummaryReady(summary) {
+    if (summaryStatus) {
+        summaryStatus.textContent = 'Ready';
+    }
+    if (summaryText) {
+        summaryText.textContent = summary;
+        summaryText.classList.remove('is-loading');
+    }
+}
+function buildSummaryPayload(semanticResults, bm25Results) {
+    const combined = [...(semanticResults || []), ...(bm25Results || [])];
+    const trimmed = [];
+    const seen = new Set();
+    for (const result of combined) {
+        if (trimmed.length >= 6)
+            break;
+        if (seen.has(result.url))
+            continue;
+        seen.add(result.url);
+        trimmed.push(result);
+    }
+    return trimmed;
+}
+function fetchSummary(query, semanticResults, bm25Results) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!summaryText || !summaryStatus)
+            return;
+        const payload = {
+            query,
+            results: buildSummaryPayload(semanticResults, bm25Results).map((result) => ({
+                title: result.title,
+                url: result.url,
+                content: result.content,
+            })),
+        };
+        try {
+            const response = yield fetch('/api/summary', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+            if (!response.ok) {
+                throw new Error('Summary response was not ok');
+            }
+            const data = yield response.json();
+            setSummaryReady(data.summary);
+        }
+        catch (error) {
+            console.error('Error fetching AI summary:', error);
+            setSummaryError();
         }
     });
 }

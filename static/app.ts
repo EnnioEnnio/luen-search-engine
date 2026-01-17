@@ -13,8 +13,16 @@ interface SearchResponse {
     duration: string;
 }
 
+interface SummaryResponse {
+    summary: string;
+    model?: string;
+    duration: string;
+}
+
 const searchInput = document.getElementById('search-input') as HTMLInputElement;
 const resultsContainer = document.getElementById('results-container') as HTMLElement;
+const summaryText = document.getElementById('summary-text') as HTMLElement;
+const summaryStatus = document.getElementById('summary-status') as HTMLElement;
 
 const searchIcon = document.querySelector('.search-icon') as HTMLElement;
 
@@ -44,6 +52,7 @@ async function performSearch(query: string): Promise<void> {
     if (!resultsContainer) return;
 
     try {
+        setSummaryLoading();
         const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
         if (!response.ok) {
             throw new Error('Network response was not ok');
@@ -53,9 +62,87 @@ async function performSearch(query: string): Promise<void> {
         console.log('Semantic results:', data.semantic_results?.length || 0);
         console.log('BM25 results:', data.bm25_results?.length || 0);
         renderResults(data.semantic_results, data.bm25_results, data.total, data.duration);
+        void fetchSummary(query, data.semantic_results, data.bm25_results);
     } catch (error) {
         console.error('Error fetching search results:', error);
         resultsContainer.innerHTML = '<div class="no-results">An error occurred while searching.</div>';
+        setSummaryError();
+    }
+}
+
+function setSummaryLoading(): void {
+    if (summaryStatus) {
+        summaryStatus.textContent = 'Generating';
+    }
+    if (summaryText) {
+        summaryText.textContent = 'Generating an AI summary based on the results...';
+        summaryText.classList.add('is-loading');
+    }
+}
+
+function setSummaryError(): void {
+    if (summaryStatus) {
+        summaryStatus.textContent = 'Unavailable';
+    }
+    if (summaryText) {
+        summaryText.textContent = 'Summary unavailable right now. Please try again later.';
+        summaryText.classList.add('is-loading');
+    }
+}
+
+function setSummaryReady(summary: string): void {
+    if (summaryStatus) {
+        summaryStatus.textContent = 'Ready';
+    }
+    if (summaryText) {
+        summaryText.textContent = summary;
+        summaryText.classList.remove('is-loading');
+    }
+}
+
+function buildSummaryPayload(semanticResults: SearchResult[], bm25Results: SearchResult[]): SearchResult[] {
+    const combined = [...(semanticResults || []), ...(bm25Results || [])];
+    const trimmed: SearchResult[] = [];
+    const seen = new Set<string>();
+
+    for (const result of combined) {
+        if (trimmed.length >= 6) break;
+        if (seen.has(result.url)) continue;
+        seen.add(result.url);
+        trimmed.push(result);
+    }
+
+    return trimmed;
+}
+
+async function fetchSummary(query: string, semanticResults: SearchResult[], bm25Results: SearchResult[]): Promise<void> {
+    if (!summaryText || !summaryStatus) return;
+
+    const payload = {
+        query,
+        results: buildSummaryPayload(semanticResults, bm25Results).map((result) => ({
+            title: result.title,
+            url: result.url,
+            content: result.content,
+        })),
+    };
+
+    try {
+        const response = await fetch('/api/summary', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+            throw new Error('Summary response was not ok');
+        }
+        const data: SummaryResponse = await response.json();
+        setSummaryReady(data.summary);
+    } catch (error) {
+        console.error('Error fetching AI summary:', error);
+        setSummaryError();
     }
 }
 
