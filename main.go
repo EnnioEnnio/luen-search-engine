@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"luen-search-engine/internal/ai"
 	"luen-search-engine/internal/data"
 	"luen-search-engine/internal/index"
 	"luen-search-engine/internal/index/disk"
@@ -27,6 +28,7 @@ import (
 	"luen-search-engine/internal/synonyms"
 	"luen-search-engine/internal/text"
 
+	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -51,6 +53,11 @@ func writeMemProfile(path string) {
 }
 
 func main() {
+	// Lade .env-Datei (falls vorhanden)
+	if err := godotenv.Load(); err != nil {
+		log.Printf("No .env file found or error loading it: %v", err)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
@@ -157,7 +164,16 @@ func main() {
 	}
 
 	if *serverMode {
-		startServer(ctx, postingSource, docLookup, tokenizer, docLengths, semanticClient)
+		// Initialisiere AI Client (falls API Key vorhanden)
+		var aiClient ai.Client
+		if apiKey := os.Getenv("OPENAI_API_KEY"); apiKey != "" {
+			aiClient = ai.NewOpenAIClient(apiKey)
+			log.Println("OpenAI client initialized")
+		} else {
+			log.Println("OPENAI_API_KEY not set, AI answers will be disabled")
+		}
+
+		startServer(ctx, postingSource, docLookup, tokenizer, docLengths, semanticClient, aiClient)
 		return
 	}
 
@@ -217,7 +233,7 @@ func main() {
 	}
 }
 
-func startServer(ctx context.Context, postingSource *disk.PostingStore, docLookup *data.DocumentStore, tokenizer *text.Tokenizer, docLengths map[search.DocID]search.FieldDocLength, semanticClient *search.SemanticClient) {
+func startServer(ctx context.Context, postingSource *disk.PostingStore, docLookup *data.DocumentStore, tokenizer *text.Tokenizer, docLengths map[search.DocID]search.FieldDocLength, semanticClient *search.SemanticClient, aiClient ai.Client) {
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 
 	http.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
@@ -249,6 +265,7 @@ func startServer(ctx context.Context, postingSource *disk.PostingStore, docLooku
 			BM25Results     []Result `json:"bm25_results"`
 			Total           int      `json:"total"`
 			Duration        string   `json:"duration"`
+			AIAnswer        string   `json:"ai_answer,omitempty"`
 		}
 
 		var jsonSemanticResults []Result
@@ -286,6 +303,36 @@ func startServer(ctx context.Context, postingSource *disk.PostingStore, docLooku
 			BM25Results:     jsonBM25Results,
 			Total:           total,
 			Duration:        duration.String(),
+		}
+
+		// Generiere AI-Antwort, falls AI Client verfügbar ist
+		if aiClient != nil {
+			// Verwende nur Top 3 Dokumente aus BM25 results für den AI-Kontext
+			var topDocs []ai.Document
+
+			// Nimm Top 3 aus BM25 results
+			for i := 0; i < len(jsonBM25Results) && i < 3; i++ {
+				topDocs = append(topDocs, ai.Document{
+					Title:   jsonBM25Results[i].Title,
+					Content: jsonBM25Results[i].Content,
+					Score:   jsonBM25Results[i].Score,
+				})
+			}
+
+			if len(topDocs) > 0 {
+				// Verwende einen Timeout-Context für AI-Anfrage (max 10 Sekunden)
+				aiCtx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+				defer cancel()
+
+				aiAnswer, err := aiClient.GenerateAnswer(aiCtx, query, topDocs)
+				if err != nil {
+					log.Printf("Failed to generate AI answer: %v", err)
+					// Setze eine Fallback-Nachricht
+					resp.AIAnswer = "AI answer temporarily unavailable."
+				} else {
+					resp.AIAnswer = aiAnswer
+				}
+			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")

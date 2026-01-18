@@ -11,6 +11,7 @@ interface SearchResponse {
     bm25_results: SearchResult[];
     total: number;
     duration: string;
+    ai_answer?: string;
 }
 
 const searchInput = document.getElementById('search-input') as HTMLInputElement;
@@ -52,14 +53,15 @@ async function performSearch(query: string): Promise<void> {
         console.log('API Response:', data);
         console.log('Semantic results:', data.semantic_results?.length || 0);
         console.log('BM25 results:', data.bm25_results?.length || 0);
-        renderResults(data.semantic_results, data.bm25_results, data.total, data.duration);
+        console.log('AI Answer:', data.ai_answer || 'none');
+        renderResults(data.semantic_results, data.bm25_results, data.total, data.duration, data.ai_answer);
     } catch (error) {
         console.error('Error fetching search results:', error);
         resultsContainer.innerHTML = '<div class="no-results">An error occurred while searching.</div>';
     }
 }
 
-function renderResults(semanticResults: SearchResult[], bm25Results: SearchResult[], total: number, duration: string): void {
+function renderResults(semanticResults: SearchResult[], bm25Results: SearchResult[], total: number, duration: string, aiAnswer?: string): void {
     if (!resultsContainer) return;
     resultsContainer.innerHTML = '';
 
@@ -84,7 +86,19 @@ function renderResults(semanticResults: SearchResult[], bm25Results: SearchResul
     
     const aiAnswerContent = document.createElement('div');
     aiAnswerContent.className = 'ai-answer-content';
-    aiAnswerContent.textContent = 'This is a sample AI-generated answer that provides a concise summary based on the search results. The AI will analyze the documents and provide helpful insights to answer your query.';
+    
+    // Zeige AI-Antwort oder Loading/Error State
+    if (aiAnswer && aiAnswer !== 'AI answer temporarily unavailable.') {
+        aiAnswerContent.textContent = aiAnswer;
+    } else if (aiAnswer === 'AI answer temporarily unavailable.') {
+        aiAnswerContent.textContent = '⚠️ AI answer is temporarily unavailable. Please try again later.';
+        aiAnswerContent.style.fontStyle = 'italic';
+        aiAnswerContent.style.opacity = '0.7';
+    } else {
+        aiAnswerContent.textContent = 'Generating AI answer...';
+        aiAnswerContent.style.fontStyle = 'italic';
+        aiAnswerContent.style.opacity = '0.7';
+    }
     
     aiAnswerBox.appendChild(aiAnswerHeader);
     aiAnswerBox.appendChild(aiAnswerContent);

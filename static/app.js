@@ -43,7 +43,8 @@ function performSearch(query) {
             console.log('API Response:', data);
             console.log('Semantic results:', ((_a = data.semantic_results) === null || _a === void 0 ? void 0 : _a.length) || 0);
             console.log('BM25 results:', ((_b = data.bm25_results) === null || _b === void 0 ? void 0 : _b.length) || 0);
-            renderResults(data.semantic_results, data.bm25_results, data.total, data.duration);
+            console.log('AI Answer:', data.ai_answer || 'none');
+            renderResults(data.semantic_results, data.bm25_results, data.total, data.duration, data.ai_answer);
         }
         catch (error) {
             console.error('Error fetching search results:', error);
@@ -51,7 +52,7 @@ function performSearch(query) {
         }
     });
 }
-function renderResults(semanticResults, bm25Results, total, duration) {
+function renderResults(semanticResults, bm25Results, total, duration, aiAnswer) {
     if (!resultsContainer)
         return;
     resultsContainer.innerHTML = '';
@@ -70,7 +71,19 @@ function renderResults(semanticResults, bm25Results, total, duration) {
     aiAnswerHeader.innerHTML = '✨ AI Answer';
     const aiAnswerContent = document.createElement('div');
     aiAnswerContent.className = 'ai-answer-content';
-    aiAnswerContent.textContent = 'This is a sample AI-generated answer that provides a concise summary based on the search results. The AI will analyze the documents and provide helpful insights to answer your query.';
+    if (aiAnswer && aiAnswer !== 'AI answer temporarily unavailable.') {
+        aiAnswerContent.textContent = aiAnswer;
+    }
+    else if (aiAnswer === 'AI answer temporarily unavailable.') {
+        aiAnswerContent.textContent = '⚠️ AI answer is temporarily unavailable. Please try again later.';
+        aiAnswerContent.style.fontStyle = 'italic';
+        aiAnswerContent.style.opacity = '0.7';
+    }
+    else {
+        aiAnswerContent.textContent = 'Generating AI answer...';
+        aiAnswerContent.style.fontStyle = 'italic';
+        aiAnswerContent.style.opacity = '0.7';
+    }
     aiAnswerBox.appendChild(aiAnswerHeader);
     aiAnswerBox.appendChild(aiAnswerContent);
     resultsContainer.appendChild(aiAnswerBox);
