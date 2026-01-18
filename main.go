@@ -53,7 +53,6 @@ func writeMemProfile(path string) {
 }
 
 func main() {
-	// Lade .env-Datei (falls vorhanden)
 	if err := godotenv.Load(); err != nil {
 		log.Printf("No .env file found or error loading it: %v", err)
 	}
@@ -164,7 +163,6 @@ func main() {
 	}
 
 	if *serverMode {
-		// Initialisiere AI Client (falls API Key vorhanden)
 		var aiClient ai.Client
 		if apiKey := os.Getenv("OPENAI_API_KEY"); apiKey != "" {
 			aiClient = ai.NewOpenAIClient(apiKey)
@@ -308,7 +306,7 @@ func startServer(ctx context.Context, postingSource *disk.PostingStore, docLooku
 		json.NewEncoder(w).Encode(resp)
 	})
 
-	// Separater Endpoint für AI-Antwort (läuft parallel zu Search)
+	// seperate endpoint for AI answers (runs parallel to search)
 	http.HandleFunc("/api/ai-answer", func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query().Get("q")
 		if query == "" {
@@ -320,8 +318,6 @@ func startServer(ctx context.Context, postingSource *disk.PostingStore, docLooku
 			http.Error(w, "AI client not available", http.StatusServiceUnavailable)
 			return
 		}
-
-		// Verwende einen Timeout-Context für AI-Anfrage (max 10 Sekunden)
 		aiCtx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 		defer cancel()
 

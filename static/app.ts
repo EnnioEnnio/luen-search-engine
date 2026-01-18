@@ -48,11 +48,8 @@ async function performSearch(query: string): Promise<void> {
     if (!resultsContainer) return;
 
     try {
-        // Starte beide Requests parallel
         const searchPromise = fetch(`/api/search?q=${encodeURIComponent(query)}`);
         const aiPromise = fetch(`/api/ai-answer?q=${encodeURIComponent(query)}`);
-
-        // Warte auf Search-Ergebnisse (schnell)
         const searchResponse = await searchPromise;
         if (!searchResponse.ok) {
             throw new Error('Network response was not ok');
@@ -62,10 +59,8 @@ async function performSearch(query: string): Promise<void> {
         console.log('Semantic results:', data.semantic_results?.length || 0);
         console.log('BM25 results:', data.bm25_results?.length || 0);
         
-        // Zeige Suchergebnisse sofort an (ohne AI-Antwort)
         renderResults(data.semantic_results, data.bm25_results, data.total, data.duration);
 
-        // Lade AI-Antwort im Hintergrund
         aiPromise.then(async (aiResponse) => {
             if (aiResponse.ok) {
                 const aiData: AIAnswerResponse = await aiResponse.json();
@@ -205,20 +200,17 @@ function createResultCard(result: SearchResult, index: number): HTMLElement {
     return card;
 }
 
-// Update AI Answer dynamisch nach dem Laden
 function updateAIAnswer(answer: string, query: string): void {
     const aiAnswerBox = document.getElementById('ai-answer-box');
     const aiAnswerContent = document.getElementById('ai-answer-content');
     
     if (!aiAnswerContent || !aiAnswerBox) return;
 
-    // Bei Fehler: Box komplett ausblenden
     if (answer === 'AI answer temporarily unavailable.') {
         aiAnswerBox.style.display = 'none';
         return;
     }
 
-    // Reset styles
     aiAnswerContent.style.fontStyle = 'normal';
     aiAnswerContent.style.opacity = '1';
     aiAnswerContent.textContent = answer;
