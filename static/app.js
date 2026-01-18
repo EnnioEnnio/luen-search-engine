@@ -63,6 +63,17 @@ function renderResults(semanticResults, bm25Results, total, duration) {
     stats.className = 'search-stats';
     stats.textContent = `Found ${total} results in ${duration}`;
     resultsContainer.appendChild(stats);
+    const aiAnswerBox = document.createElement('div');
+    aiAnswerBox.className = 'ai-answer-box';
+    const aiAnswerHeader = document.createElement('div');
+    aiAnswerHeader.className = 'ai-answer-header';
+    aiAnswerHeader.innerHTML = '✨ AI Answer';
+    const aiAnswerContent = document.createElement('div');
+    aiAnswerContent.className = 'ai-answer-content';
+    aiAnswerContent.textContent = 'This is a sample AI-generated answer that provides a concise summary based on the search results. The AI will analyze the documents and provide helpful insights to answer your query.';
+    aiAnswerBox.appendChild(aiAnswerHeader);
+    aiAnswerBox.appendChild(aiAnswerContent);
+    resultsContainer.appendChild(aiAnswerBox);
     const columnsContainer = document.createElement('div');
     columnsContainer.className = 'results-grid';
     const bm25Column = document.createElement('div');
