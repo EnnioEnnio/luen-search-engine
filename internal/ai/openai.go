@@ -21,7 +21,7 @@ func NewOpenAIClient(apiKey string) *OpenAIClient {
 		apiKey: apiKey,
 		model:  "gpt-4o-mini",
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 10 * time.Second,
 		},
 	}
 }
