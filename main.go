@@ -307,31 +307,17 @@ func startServer(ctx context.Context, postingSource *disk.PostingStore, docLooku
 
 		// Generiere AI-Antwort, falls AI Client verfügbar ist
 		if aiClient != nil {
-			// Verwende nur Top 3 Dokumente aus BM25 results für den AI-Kontext
-			var topDocs []ai.Document
+			// Verwende einen Timeout-Context für AI-Anfrage (max 10 Sekunden)
+			aiCtx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+			defer cancel()
 
-			// Nimm Top 3 aus BM25 results
-			for i := 0; i < len(jsonBM25Results) && i < 3; i++ {
-				topDocs = append(topDocs, ai.Document{
-					Title:   jsonBM25Results[i].Title,
-					Content: jsonBM25Results[i].Content,
-					Score:   jsonBM25Results[i].Score,
-				})
-			}
-
-			if len(topDocs) > 0 {
-				// Verwende einen Timeout-Context für AI-Anfrage (max 10 Sekunden)
-				aiCtx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-				defer cancel()
-
-				aiAnswer, err := aiClient.GenerateAnswer(aiCtx, query, topDocs)
-				if err != nil {
-					log.Printf("Failed to generate AI answer: %v", err)
-					// Setze eine Fallback-Nachricht
-					resp.AIAnswer = "AI answer temporarily unavailable."
-				} else {
-					resp.AIAnswer = aiAnswer
-				}
+			aiAnswer, err := aiClient.GenerateAnswer(aiCtx, query)
+			if err != nil {
+				log.Printf("Failed to generate AI answer: %v", err)
+				// Setze eine Fallback-Nachricht
+				resp.AIAnswer = "AI answer temporarily unavailable."
+			} else {
+				resp.AIAnswer = aiAnswer
 			}
 		}
 

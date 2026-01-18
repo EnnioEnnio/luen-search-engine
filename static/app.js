@@ -86,6 +86,10 @@ function renderResults(semanticResults, bm25Results, total, duration, aiAnswer) 
     }
     aiAnswerBox.appendChild(aiAnswerHeader);
     aiAnswerBox.appendChild(aiAnswerContent);
+    const disclaimer = document.createElement('div');
+    disclaimer.className = 'ai-disclaimer';
+    disclaimer.textContent = 'AI can make mistakes. Please verify this answer.';
+    aiAnswerBox.appendChild(disclaimer);
     resultsContainer.appendChild(aiAnswerBox);
     const columnsContainer = document.createElement('div');
     columnsContainer.className = 'results-grid';

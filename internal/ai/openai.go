@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -51,41 +50,17 @@ type openAIResponse struct {
 	} `json:"error,omitempty"`
 }
 
-// GenerateAnswer generates an AI answer based on the query and top documents
-func (c *OpenAIClient) GenerateAnswer(ctx context.Context, query string, documents []Document) (string, error) {
-	if len(documents) == 0 {
-		return "", fmt.Errorf("no documents provided")
-	}
-
-	// Baue den Kontext aus den Top-Dokumenten
-	contextBuilder := strings.Builder{}
-	contextBuilder.WriteString("Here are the most relevant documents:\n\n")
-
-	// Nehme nur die Top 3 Dokumente für den Kontext (um Token-Limit nicht zu überschreiten)
-	maxDocs := 3
-	if len(documents) < maxDocs {
-		maxDocs = len(documents)
-	}
-
-	for i := 0; i < maxDocs; i++ {
-		doc := documents[i]
-		contextBuilder.WriteString(fmt.Sprintf("Document %d:\n", i+1))
-		contextBuilder.WriteString(fmt.Sprintf("Title: %s\n", doc.Title))
-
-		// Begrenze den Content auf ~500 Zeichen pro Dokument
-		content := doc.Content
-		if len(content) > 500 {
-			content = content[:500] + "..."
-		}
-		contextBuilder.WriteString(fmt.Sprintf("Content: %s\n\n", content))
+// GenerateAnswer generates a concise AI answer explaining what the query is about
+func (c *OpenAIClient) GenerateAnswer(ctx context.Context, query string) (string, error) {
+	if query == "" {
+		return "", fmt.Errorf("query is empty")
 	}
 
 	// Erstelle den System-Prompt
-	systemPrompt := `You are a helpful search assistant. Your task is to provide a concise, accurate answer based on the provided documents. 
-Keep your answer to 2-3 sentences maximum. Be direct and informative. If the documents don't contain enough information to answer the question, say so briefly.`
+	systemPrompt := `You are a helpful assistant. Provide a brief, one-sentence explanation. Start your answer directly without repeating the query. If you mention any names or titles, don't enclose them in double quotes.`
 
 	// Erstelle den User-Prompt
-	userPrompt := fmt.Sprintf("%s\n\nQuestion: %s", contextBuilder.String(), query)
+	userPrompt := fmt.Sprintf("Explain in one sentence what this is: %s", query)
 
 	// Baue den API Request
 	reqBody := openAIRequest{
@@ -94,7 +69,7 @@ Keep your answer to 2-3 sentences maximum. Be direct and informative. If the doc
 			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: userPrompt},
 		},
-		MaxTokens: 150, // Begrenze die Antwort auf ~100-150 Tokens (2-3 Sätze)
+		MaxTokens: 50, // Begrenze die Antwort auf ~50 Tokens (1 Satz)
 	}
 
 	jsonBody, err := json.Marshal(reqBody)

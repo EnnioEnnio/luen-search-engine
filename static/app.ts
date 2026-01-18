@@ -102,6 +102,12 @@ function renderResults(semanticResults: SearchResult[], bm25Results: SearchResul
     
     aiAnswerBox.appendChild(aiAnswerHeader);
     aiAnswerBox.appendChild(aiAnswerContent);
+    
+    const disclaimer = document.createElement('div');
+    disclaimer.className = 'ai-disclaimer';
+    disclaimer.textContent = 'AI can make mistakes. Please verify this answer.';
+    aiAnswerBox.appendChild(disclaimer);
+    
     resultsContainer.appendChild(aiAnswerBox);
 
     // Create two columns container

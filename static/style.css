@@ -249,6 +249,14 @@ header h1 {
     text-align: center;
 }
 
+.ai-disclaimer {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-align: center;
+    margin-top: 1rem;
+    font-style: italic;
+}
+
 .result-card {
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
