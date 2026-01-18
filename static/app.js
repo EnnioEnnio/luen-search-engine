@@ -50,14 +50,14 @@ function performSearch(query) {
                 if (aiResponse.ok) {
                     const aiData = yield aiResponse.json();
                     console.log('AI Answer:', aiData.answer);
-                    updateAIAnswer(aiData.answer, query);
+                    updateAIAnswer(aiData.answer);
                 }
                 else {
-                    updateAIAnswer('AI answer temporarily unavailable.', query);
+                    updateAIAnswer('AI answer temporarily unavailable.');
                 }
             })).catch((error) => {
                 console.error('Error fetching AI answer:', error);
-                updateAIAnswer('AI answer temporarily unavailable.', query);
+                updateAIAnswer('AI answer temporarily unavailable.');
             });
         }
         catch (error) {
@@ -162,7 +162,7 @@ function createResultCard(result, index) {
     card.appendChild(content);
     return card;
 }
-function updateAIAnswer(answer, query) {
+function updateAIAnswer(answer) {
     const aiAnswerBox = document.getElementById('ai-answer-box');
     const aiAnswerContent = document.getElementById('ai-answer-content');
     if (!aiAnswerContent || !aiAnswerBox)

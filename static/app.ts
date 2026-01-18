@@ -22,6 +22,9 @@ const resultsContainer = document.getElementById('results-container') as HTMLEle
 
 const searchIcon = document.querySelector('.search-icon') as HTMLElement;
 
+// Track the current query to prevent race conditions
+let currentQuery: string = '';
+
 if (searchInput && resultsContainer) {
     // Search on Enter key
     searchInput.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -47,6 +50,9 @@ if (searchIcon && searchInput) {
 async function performSearch(query: string): Promise<void> {
     if (!resultsContainer) return;
 
+    // Update current query to prevent race conditions
+    currentQuery = query;
+
     try {
         const searchPromise = fetch(`/api/search?q=${encodeURIComponent(query)}`);
         const aiPromise = fetch(`/api/ai-answer?q=${encodeURIComponent(query)}`);
@@ -55,6 +61,12 @@ async function performSearch(query: string): Promise<void> {
             throw new Error('Network response was not ok');
         }
         const data: SearchResponse = await searchResponse.json();
+        
+        if (query !== currentQuery) {
+            console.log('Search superseded by newer query, ignoring results');
+            return;
+        }
+        
         console.log('API Response:', data);
         console.log('Semantic results:', data.semantic_results?.length || 0);
         console.log('BM25 results:', data.bm25_results?.length || 0);
@@ -62,21 +74,30 @@ async function performSearch(query: string): Promise<void> {
         renderResults(data.semantic_results, data.bm25_results, data.total, data.duration);
 
         aiPromise.then(async (aiResponse) => {
+            if (query !== currentQuery) {
+                console.log('AI answer superseded by newer query, ignoring');
+                return;
+            }
+            
             if (aiResponse.ok) {
                 const aiData: AIAnswerResponse = await aiResponse.json();
                 console.log('AI Answer:', aiData.answer);
-                updateAIAnswer(aiData.answer, query);
+                updateAIAnswer(aiData.answer);
             } else {
-                updateAIAnswer('AI answer temporarily unavailable.', query);
+                updateAIAnswer('AI answer temporarily unavailable.');
             }
         }).catch((error) => {
             console.error('Error fetching AI answer:', error);
-            updateAIAnswer('AI answer temporarily unavailable.', query);
+            if (query === currentQuery) {
+                updateAIAnswer('AI answer temporarily unavailable.');
+            }
         });
 
     } catch (error) {
         console.error('Error fetching search results:', error);
-        resultsContainer.innerHTML = '<div class="no-results">An error occurred while searching.</div>';
+        if (query === currentQuery) {
+            resultsContainer.innerHTML = '<div class="no-results">An error occurred while searching.</div>';
+        }
     }
 }
 
@@ -200,7 +221,7 @@ function createResultCard(result: SearchResult, index: number): HTMLElement {
     return card;
 }
 
-function updateAIAnswer(answer: string, query: string): void {
+function updateAIAnswer(answer: string): void {
     const aiAnswerBox = document.getElementById('ai-answer-box');
     const aiAnswerContent = document.getElementById('ai-answer-content');
     

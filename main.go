@@ -164,7 +164,9 @@ func main() {
 
 	if *serverMode {
 		var aiClient ai.Client
-		if apiKey := os.Getenv("OPENAI_API_KEY"); apiKey != "" {
+		rawAPIKey := os.Getenv("OPENAI_API_KEY")
+		apiKey := strings.TrimSpace(rawAPIKey)
+		if apiKey != "" {
 			aiClient = ai.NewOpenAIClient(apiKey)
 			log.Println("OpenAI client initialized")
 		} else {
