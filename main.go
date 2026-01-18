@@ -265,7 +265,6 @@ func startServer(ctx context.Context, postingSource *disk.PostingStore, docLooku
 			BM25Results     []Result `json:"bm25_results"`
 			Total           int      `json:"total"`
 			Duration        string   `json:"duration"`
-			AIAnswer        string   `json:"ai_answer,omitempty"`
 		}
 
 		var jsonSemanticResults []Result
@@ -305,24 +304,40 @@ func startServer(ctx context.Context, postingSource *disk.PostingStore, docLooku
 			Duration:        duration.String(),
 		}
 
-		// Generiere AI-Antwort, falls AI Client verfügbar ist
-		if aiClient != nil {
-			// Verwende einen Timeout-Context für AI-Anfrage (max 10 Sekunden)
-			aiCtx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-			defer cancel()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	})
 
-			aiAnswer, err := aiClient.GenerateAnswer(aiCtx, query)
-			if err != nil {
-				log.Printf("Failed to generate AI answer: %v", err)
-				// Setze eine Fallback-Nachricht
-				resp.AIAnswer = "AI answer temporarily unavailable."
-			} else {
-				resp.AIAnswer = aiAnswer
-			}
+	// Separater Endpoint für AI-Antwort (läuft parallel zu Search)
+	http.HandleFunc("/api/ai-answer", func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query().Get("q")
+		if query == "" {
+			http.Error(w, "Missing query parameter 'q'", http.StatusBadRequest)
+			return
+		}
+
+		if aiClient == nil {
+			http.Error(w, "AI client not available", http.StatusServiceUnavailable)
+			return
+		}
+
+		// Verwende einen Timeout-Context für AI-Anfrage (max 10 Sekunden)
+		aiCtx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+
+		aiAnswer, err := aiClient.GenerateAnswer(aiCtx, query)
+		if err != nil {
+			log.Printf("Failed to generate AI answer: %v", err)
+			http.Error(w, "AI answer generation failed", http.StatusInternalServerError)
+			return
+		}
+
+		type AIResponse struct {
+			Answer string `json:"answer"`
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		json.NewEncoder(w).Encode(AIResponse{Answer: aiAnswer})
 	})
 
 	server := &http.Server{

@@ -35,16 +35,30 @@ function performSearch(query) {
         if (!resultsContainer)
             return;
         try {
-            const response = yield fetch(`/api/search?q=${encodeURIComponent(query)}`);
-            if (!response.ok) {
+            const searchPromise = fetch(`/api/search?q=${encodeURIComponent(query)}`);
+            const aiPromise = fetch(`/api/ai-answer?q=${encodeURIComponent(query)}`);
+            const searchResponse = yield searchPromise;
+            if (!searchResponse.ok) {
                 throw new Error('Network response was not ok');
             }
-            const data = yield response.json();
+            const data = yield searchResponse.json();
             console.log('API Response:', data);
             console.log('Semantic results:', ((_a = data.semantic_results) === null || _a === void 0 ? void 0 : _a.length) || 0);
             console.log('BM25 results:', ((_b = data.bm25_results) === null || _b === void 0 ? void 0 : _b.length) || 0);
-            console.log('AI Answer:', data.ai_answer || 'none');
-            renderResults(data.semantic_results, data.bm25_results, data.total, data.duration, data.ai_answer);
+            renderResults(data.semantic_results, data.bm25_results, data.total, data.duration);
+            aiPromise.then((aiResponse) => __awaiter(this, void 0, void 0, function* () {
+                if (aiResponse.ok) {
+                    const aiData = yield aiResponse.json();
+                    console.log('AI Answer:', aiData.answer);
+                    updateAIAnswer(aiData.answer, query);
+                }
+                else {
+                    updateAIAnswer('AI answer temporarily unavailable.', query);
+                }
+            })).catch((error) => {
+                console.error('Error fetching AI answer:', error);
+                updateAIAnswer('AI answer temporarily unavailable.', query);
+            });
         }
         catch (error) {
             console.error('Error fetching search results:', error);
@@ -52,7 +66,7 @@ function performSearch(query) {
         }
     });
 }
-function renderResults(semanticResults, bm25Results, total, duration, aiAnswer) {
+function renderResults(semanticResults, bm25Results, total, duration) {
     if (!resultsContainer)
         return;
     resultsContainer.innerHTML = '';
@@ -66,24 +80,16 @@ function renderResults(semanticResults, bm25Results, total, duration, aiAnswer) 
     resultsContainer.appendChild(stats);
     const aiAnswerBox = document.createElement('div');
     aiAnswerBox.className = 'ai-answer-box';
+    aiAnswerBox.id = 'ai-answer-box';
     const aiAnswerHeader = document.createElement('div');
     aiAnswerHeader.className = 'ai-answer-header';
     aiAnswerHeader.innerHTML = '✨ AI Answer';
     const aiAnswerContent = document.createElement('div');
     aiAnswerContent.className = 'ai-answer-content';
-    if (aiAnswer && aiAnswer !== 'AI answer temporarily unavailable.') {
-        aiAnswerContent.textContent = aiAnswer;
-    }
-    else if (aiAnswer === 'AI answer temporarily unavailable.') {
-        aiAnswerContent.textContent = '⚠️ AI answer is temporarily unavailable. Please try again later.';
-        aiAnswerContent.style.fontStyle = 'italic';
-        aiAnswerContent.style.opacity = '0.7';
-    }
-    else {
-        aiAnswerContent.textContent = 'Generating AI answer...';
-        aiAnswerContent.style.fontStyle = 'italic';
-        aiAnswerContent.style.opacity = '0.7';
-    }
+    aiAnswerContent.id = 'ai-answer-content';
+    aiAnswerContent.textContent = 'Generating AI answer...';
+    aiAnswerContent.style.fontStyle = 'italic';
+    aiAnswerContent.style.opacity = '0.7';
     aiAnswerBox.appendChild(aiAnswerHeader);
     aiAnswerBox.appendChild(aiAnswerContent);
     const disclaimer = document.createElement('div');
@@ -155,4 +161,17 @@ function createResultCard(result, index) {
     card.appendChild(url);
     card.appendChild(content);
     return card;
+}
+function updateAIAnswer(answer, query) {
+    const aiAnswerBox = document.getElementById('ai-answer-box');
+    const aiAnswerContent = document.getElementById('ai-answer-content');
+    if (!aiAnswerContent || !aiAnswerBox)
+        return;
+    if (answer === 'AI answer temporarily unavailable.') {
+        aiAnswerBox.style.display = 'none';
+        return;
+    }
+    aiAnswerContent.style.fontStyle = 'normal';
+    aiAnswerContent.style.opacity = '1';
+    aiAnswerContent.textContent = answer;
 }
