@@ -308,7 +308,7 @@ func startServer(ctx context.Context, postingSource *disk.PostingStore, docLooku
 		json.NewEncoder(w).Encode(resp)
 	})
 
-	// seperate endpoint for AI answers (runs parallel to search)
+	// separate endpoint for AI answers (runs parallel to search)
 	http.HandleFunc("/api/ai-answer", func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query().Get("q")
 		if query == "" {

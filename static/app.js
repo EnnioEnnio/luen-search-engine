@@ -11,6 +11,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 const searchInput = document.getElementById('search-input');
 const resultsContainer = document.getElementById('results-container');
 const searchIcon = document.querySelector('.search-icon');
+let currentQuery = '';
 if (searchInput && resultsContainer) {
     searchInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
@@ -34,6 +35,7 @@ function performSearch(query) {
         var _a, _b;
         if (!resultsContainer)
             return;
+        currentQuery = query;
         try {
             const searchPromise = fetch(`/api/search?q=${encodeURIComponent(query)}`);
             const aiPromise = fetch(`/api/ai-answer?q=${encodeURIComponent(query)}`);
@@ -42,11 +44,19 @@ function performSearch(query) {
                 throw new Error('Network response was not ok');
             }
             const data = yield searchResponse.json();
+            if (query !== currentQuery) {
+                console.log('Search superseded by newer query, ignoring results');
+                return;
+            }
             console.log('API Response:', data);
             console.log('Semantic results:', ((_a = data.semantic_results) === null || _a === void 0 ? void 0 : _a.length) || 0);
             console.log('BM25 results:', ((_b = data.bm25_results) === null || _b === void 0 ? void 0 : _b.length) || 0);
             renderResults(data.semantic_results, data.bm25_results, data.total, data.duration);
             aiPromise.then((aiResponse) => __awaiter(this, void 0, void 0, function* () {
+                if (query !== currentQuery) {
+                    console.log('AI answer superseded by newer query, ignoring');
+                    return;
+                }
                 if (aiResponse.ok) {
                     const aiData = yield aiResponse.json();
                     console.log('AI Answer:', aiData.answer);
@@ -57,12 +67,16 @@ function performSearch(query) {
                 }
             })).catch((error) => {
                 console.error('Error fetching AI answer:', error);
-                updateAIAnswer('AI answer temporarily unavailable.');
+                if (query === currentQuery) {
+                    updateAIAnswer('AI answer temporarily unavailable.');
+                }
             });
         }
         catch (error) {
             console.error('Error fetching search results:', error);
-            resultsContainer.innerHTML = '<div class="no-results">An error occurred while searching.</div>';
+            if (query === currentQuery) {
+                resultsContainer.innerHTML = '<div class="no-results">An error occurred while searching.</div>';
+            }
         }
     });
 }
