@@ -3,6 +3,7 @@ module luen-search-engine
 go 1.25.3
 
 require (
+	github.com/joho/godotenv v1.5.1
 	github.com/nlpodyssey/cybertron v0.2.1
 	github.com/rs/zerolog v1.31.0
 	google.golang.org/grpc v1.78.0
@@ -12,7 +13,6 @@ require (
 require (
 	github.com/dlclark/regexp2 v1.4.0 // indirect
 	github.com/google/flatbuffers v23.5.26+incompatible // indirect
-	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/nlpodyssey/gopickle v0.2.0 // indirect
