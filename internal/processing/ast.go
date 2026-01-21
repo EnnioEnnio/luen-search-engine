@@ -450,10 +450,5 @@ func (n *OrNode) Prune(highIDFTokens map[Token]bool) Node {
 }
 
 func (n *NotNode) Prune(highIDFTokens map[Token]bool) Node {
-	pruned := n.Child.Prune(highIDFTokens)
-	if pruned == nil {
-		return nil
-	}
-	n.Child = pruned
 	return n
 }
