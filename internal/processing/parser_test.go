@@ -176,7 +176,7 @@ func TestPruneNotNodePreservesExclusion(t *testing.T) {
 	// Create a highIDFTokens map that only includes "alpha" (beta has low IDF)
 	highIDFTokens := map[Token]bool{
 		"alpha": true,
-		// "beta" is intentionally omitted - it has low IDF
+		// "beta" is intentionally omitted to simulate low IDF
 	}
 
 	// Prune the AST
@@ -219,6 +219,7 @@ func TestPruneTermNodeWithLowIDF(t *testing.T) {
 	}
 
 	// Create a highIDFTokens map that does not include "beta"
+	// (alpha is included to make the map non-empty, though not relevant to this test)
 	highIDFTokens := map[Token]bool{
 		"alpha": true,
 	}
@@ -299,7 +300,7 @@ func TestPruneComplexQueryWithNot(t *testing.T) {
 		t.Fatalf("unexpected parse error: %v", err)
 	}
 
-	// Only alpha has high IDF (beta and gamma are low IDF)
+	// Only alpha has high IDF (beta and gamma are treated as low IDF by omission)
 	highIDFTokens := map[Token]bool{
 		"alpha": true,
 	}
