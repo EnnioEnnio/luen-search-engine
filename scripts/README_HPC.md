@@ -26,14 +26,15 @@ This guide explains how to generate embeddings for the MS MARCO dataset on the H
 
 ### Configure the Script
 
-Before first use, edit the script to set your repository path:
+Before first use, edit the script to set your repository path and notification preferences:
 
 ```bash
-# Edit the REPO_PATH variable in the script
+# Edit the script
 nano scripts/generate_embeddings.slurm
 
-# Change this line to match your cluster path:
+# Update these lines:
 REPO_PATH=/sc/home/<YOUR_USERNAME>/luen-search-engine
+#SBATCH --mail-user=<YOUR_EMAIL_OR_SLACK>  # e.g., your.name@hpi.de or slack:username
 ```
 
 ### Submit the Job

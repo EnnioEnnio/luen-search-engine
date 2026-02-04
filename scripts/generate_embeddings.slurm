@@ -1,5 +1,7 @@
 #!/bin/bash
-#SBATCH -A {account name}
+#SBATCH -A {account_name}
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=slack:<YOUR_USERNAME>
 #SBATCH --partition=gpu-batch
 #SBATCH -C ARCH:X86
 #SBATCH --time=6:00:00
