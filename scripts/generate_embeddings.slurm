@@ -20,17 +20,18 @@ echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURMD_NODENAME"
 echo "GPU: $CUDA_VISIBLE_DEVICES"
 
-# Step 1: Set up container with dependencies
+# Step 1: Set up container with dependencies (reuses container across jobs)
 echo "Setting up container with dependencies..."
+CONTAINER_NAME=luen-embed-$USER-pytorch2501
 srun --container-image="nvcr.io#nvidia/pytorch:25.01-py3" \
-     --container-name=luen-embed-$SLURM_JOB_ID \
+     --container-name=$CONTAINER_NAME \
      --container-writable \
      --container-mounts=$REPO_PATH:/workspace \
-     pip install --force-reinstall --no-cache-dir transformers tqdm einops
+     bash -c "pip list | grep -q 'transformers.*5\.' || pip install --no-cache-dir transformers tqdm einops"
 
 # Step 2: Run embedding generation
 echo "Running embedding generation..."
-srun --container-name=luen-embed-$SLURM_JOB_ID \
+srun --container-name=$CONTAINER_NAME \
      --container-mounts=$REPO_PATH:/workspace \
      --container-workdir=/workspace/embedding \
      python create_embedding.py \
