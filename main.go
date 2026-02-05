@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"luen-search-engine/internal/ai"
 	"luen-search-engine/internal/data"
 	"luen-search-engine/internal/index"
 	"luen-search-engine/internal/index/disk"
@@ -27,6 +28,7 @@ import (
 	"luen-search-engine/internal/synonyms"
 	"luen-search-engine/internal/text"
 
+	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -51,6 +53,10 @@ func writeMemProfile(path string) {
 }
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Printf("No .env file found or error loading it: %v", err)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
@@ -157,7 +163,22 @@ func main() {
 	}
 
 	if *serverMode {
-		startServer(ctx, postingSource, docLookup, tokenizer, docLengths, semanticClient)
+		var aiClient ai.Client
+		rawAPIKey := os.Getenv("OPENAI_API_KEY")
+		apiKey := strings.TrimSpace(rawAPIKey)
+		if apiKey != "" {
+			// Validate API key format
+			if !strings.HasPrefix(apiKey, "sk-") || len(apiKey) < 20 {
+				log.Printf("WARNING: OPENAI_API_KEY appears to be malformed (should start with 'sk-' and be at least 20 characters), AI answers will be disabled")
+			} else {
+				aiClient = ai.NewOpenAIClient(apiKey)
+				log.Println("OpenAI client initialized")
+			}
+		} else {
+			log.Println("OPENAI_API_KEY not set, AI answers will be disabled")
+		}
+
+		startServer(ctx, postingSource, docLookup, tokenizer, docLengths, semanticClient, aiClient)
 		return
 	}
 
@@ -217,7 +238,7 @@ func main() {
 	}
 }
 
-func startServer(ctx context.Context, postingSource *disk.PostingStore, docLookup *data.DocumentStore, tokenizer *text.Tokenizer, docLengths map[search.DocID]search.FieldDocLength, semanticClient *search.SemanticClient) {
+func startServer(ctx context.Context, postingSource *disk.PostingStore, docLookup *data.DocumentStore, tokenizer *text.Tokenizer, docLengths map[search.DocID]search.FieldDocLength, semanticClient *search.SemanticClient, aiClient ai.Client) {
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 
 	http.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
@@ -290,6 +311,36 @@ func startServer(ctx context.Context, postingSource *disk.PostingStore, docLooku
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
+	})
+
+	// separate endpoint for AI answers (runs parallel to search)
+	http.HandleFunc("/api/ai-answer", func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query().Get("q")
+		if query == "" {
+			http.Error(w, "Missing query parameter 'q'", http.StatusBadRequest)
+			return
+		}
+
+		if aiClient == nil {
+			http.Error(w, "AI client not available", http.StatusServiceUnavailable)
+			return
+		}
+		aiCtx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+
+		aiAnswer, err := aiClient.GenerateAnswer(aiCtx, query)
+		if err != nil {
+			log.Printf("Failed to generate AI answer: %v", err)
+			http.Error(w, "AI answer generation failed", http.StatusInternalServerError)
+			return
+		}
+
+		type AIResponse struct {
+			Answer string `json:"answer"`
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(AIResponse{Answer: aiAnswer})
 	})
 
 	server := &http.Server{

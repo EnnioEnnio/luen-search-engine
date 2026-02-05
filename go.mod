@@ -3,6 +3,7 @@ module luen-search-engine
 go 1.25.3
 
 require (
+	github.com/joho/godotenv v1.5.1
 	github.com/nlpodyssey/cybertron v0.2.1
 	github.com/rs/zerolog v1.31.0
 	google.golang.org/grpc v1.78.0

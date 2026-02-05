@@ -58,3 +58,4 @@ embedding/__pycache__/
 embedding/.venv/
 # embedding/output/ # We're currently including this for workflow reasons. Once the embedding becomes too large we're excluding again
 embedding/.ruff_cache
+.env

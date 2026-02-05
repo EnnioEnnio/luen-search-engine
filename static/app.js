@@ -11,6 +11,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 const searchInput = document.getElementById('search-input');
 const resultsContainer = document.getElementById('results-container');
 const searchIcon = document.querySelector('.search-icon');
+let currentQuery = '';
 if (searchInput && resultsContainer) {
     searchInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
@@ -34,20 +35,48 @@ function performSearch(query) {
         var _a, _b;
         if (!resultsContainer)
             return;
+        currentQuery = query;
         try {
-            const response = yield fetch(`/api/search?q=${encodeURIComponent(query)}`);
-            if (!response.ok) {
+            const searchPromise = fetch(`/api/search?q=${encodeURIComponent(query)}`);
+            const aiPromise = fetch(`/api/ai-answer?q=${encodeURIComponent(query)}`);
+            const searchResponse = yield searchPromise;
+            if (!searchResponse.ok) {
                 throw new Error('Network response was not ok');
             }
-            const data = yield response.json();
+            const data = yield searchResponse.json();
+            if (query !== currentQuery) {
+                console.log('Search superseded by newer query, ignoring results');
+                return;
+            }
             console.log('API Response:', data);
             console.log('Semantic results:', ((_a = data.semantic_results) === null || _a === void 0 ? void 0 : _a.length) || 0);
             console.log('BM25 results:', ((_b = data.bm25_results) === null || _b === void 0 ? void 0 : _b.length) || 0);
             renderResults(data.semantic_results, data.bm25_results, data.total, data.duration);
+            aiPromise.then((aiResponse) => __awaiter(this, void 0, void 0, function* () {
+                if (query !== currentQuery) {
+                    console.log('AI answer superseded by newer query, ignoring');
+                    return;
+                }
+                if (aiResponse.ok) {
+                    const aiData = yield aiResponse.json();
+                    console.log('AI Answer:', aiData.answer);
+                    updateAIAnswer(aiData.answer);
+                }
+                else {
+                    updateAIAnswer('AI answer temporarily unavailable.');
+                }
+            })).catch((error) => {
+                console.error('Error fetching AI answer:', error);
+                if (query === currentQuery) {
+                    updateAIAnswer('AI answer temporarily unavailable.');
+                }
+            });
         }
         catch (error) {
             console.error('Error fetching search results:', error);
-            resultsContainer.innerHTML = '<div class="no-results">An error occurred while searching.</div>';
+            if (query === currentQuery) {
+                resultsContainer.innerHTML = '<div class="no-results">An error occurred while searching.</div>';
+            }
         }
     });
 }
@@ -63,6 +92,25 @@ function renderResults(semanticResults, bm25Results, total, duration) {
     stats.className = 'search-stats';
     stats.textContent = `Found ${total} results in ${duration}`;
     resultsContainer.appendChild(stats);
+    const aiAnswerBox = document.createElement('div');
+    aiAnswerBox.className = 'ai-answer-box';
+    aiAnswerBox.id = 'ai-answer-box';
+    const aiAnswerHeader = document.createElement('div');
+    aiAnswerHeader.className = 'ai-answer-header';
+    aiAnswerHeader.innerHTML = '✨ AI Answer';
+    const aiAnswerContent = document.createElement('div');
+    aiAnswerContent.className = 'ai-answer-content';
+    aiAnswerContent.id = 'ai-answer-content';
+    aiAnswerContent.textContent = 'Generating AI answer...';
+    aiAnswerContent.style.fontStyle = 'italic';
+    aiAnswerContent.style.opacity = '0.7';
+    aiAnswerBox.appendChild(aiAnswerHeader);
+    aiAnswerBox.appendChild(aiAnswerContent);
+    const disclaimer = document.createElement('div');
+    disclaimer.className = 'ai-disclaimer';
+    disclaimer.textContent = 'AI can make mistakes. Please verify this answer.';
+    aiAnswerBox.appendChild(disclaimer);
+    resultsContainer.appendChild(aiAnswerBox);
     const columnsContainer = document.createElement('div');
     columnsContainer.className = 'results-grid';
     const bm25Column = document.createElement('div');
@@ -127,4 +175,17 @@ function createResultCard(result, index) {
     card.appendChild(url);
     card.appendChild(content);
     return card;
+}
+function updateAIAnswer(answer) {
+    const aiAnswerBox = document.getElementById('ai-answer-box');
+    const aiAnswerContent = document.getElementById('ai-answer-content');
+    if (!aiAnswerContent || !aiAnswerBox)
+        return;
+    if (answer === 'AI answer temporarily unavailable.') {
+        aiAnswerBox.style.display = 'none';
+        return;
+    }
+    aiAnswerContent.style.fontStyle = 'normal';
+    aiAnswerContent.style.opacity = '1';
+    aiAnswerContent.textContent = answer;
 }
