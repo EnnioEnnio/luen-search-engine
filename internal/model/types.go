@@ -20,7 +20,7 @@ type Result struct {
 	DocID              DocID
 	TotalTermFrequency int // used for ranking only
 	Matches            []Match
-	BM25Score          float64
+	Score              float64
 }
 
 // Document lengths stores the number of tokens in the title and body fields of a document.

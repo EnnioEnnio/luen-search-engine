@@ -31,6 +31,7 @@ if (searchIcon && searchInput) {
 }
 function performSearch(query) {
     return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b;
         if (!resultsContainer)
             return;
         try {
@@ -39,7 +40,10 @@ function performSearch(query) {
                 throw new Error('Network response was not ok');
             }
             const data = yield response.json();
-            renderResults(data.results, data.total, data.duration);
+            console.log('API Response:', data);
+            console.log('Semantic results:', ((_a = data.semantic_results) === null || _a === void 0 ? void 0 : _a.length) || 0);
+            console.log('BM25 results:', ((_b = data.bm25_results) === null || _b === void 0 ? void 0 : _b.length) || 0);
+            renderResults(data.semantic_results, data.bm25_results, data.total, data.duration);
         }
         catch (error) {
             console.error('Error fetching search results:', error);
@@ -47,11 +51,11 @@ function performSearch(query) {
         }
     });
 }
-function renderResults(results, total, duration) {
+function renderResults(semanticResults, bm25Results, total, duration) {
     if (!resultsContainer)
         return;
     resultsContainer.innerHTML = '';
-    if (!results || results.length === 0) {
+    if ((!semanticResults || semanticResults.length === 0) && (!bm25Results || bm25Results.length === 0)) {
         resultsContainer.innerHTML = '<div class="no-results">No results found in the cosmos.</div>';
         return;
     }
@@ -59,32 +63,68 @@ function renderResults(results, total, duration) {
     stats.className = 'search-stats';
     stats.textContent = `Found ${total} results in ${duration}`;
     resultsContainer.appendChild(stats);
-    results.forEach((result, index) => {
-        const card = document.createElement('div');
-        card.className = 'result-card';
-        card.style.animationDelay = `${index * 0.05}s`;
-        const header = document.createElement('div');
-        header.className = 'result-header';
-        const titleLink = document.createElement('a');
-        titleLink.className = 'result-title';
-        titleLink.href = result.url;
-        titleLink.target = '_blank';
-        titleLink.textContent = result.title || `Document #${result.id}`;
-        const score = document.createElement('span');
-        const truncScore = Math.trunc(result.score);
-        score.className = 'result-score';
-        score.textContent = `Score: ${truncScore}`;
-        header.appendChild(titleLink);
-        header.appendChild(score);
-        const url = document.createElement('div');
-        url.className = 'result-url';
-        url.textContent = result.url;
-        const content = document.createElement('div');
-        content.className = 'result-content';
-        content.textContent = result.content;
-        card.appendChild(header);
-        card.appendChild(url);
-        card.appendChild(content);
-        resultsContainer.appendChild(card);
-    });
+    const columnsContainer = document.createElement('div');
+    columnsContainer.className = 'results-grid';
+    const bm25Column = document.createElement('div');
+    bm25Column.className = 'results-column';
+    const bm25Header = document.createElement('h2');
+    bm25Header.textContent = 'BM25 Results';
+    bm25Column.appendChild(bm25Header);
+    if (bm25Results && bm25Results.length > 0) {
+        bm25Results.forEach((result, index) => {
+            bm25Column.appendChild(createResultCard(result, index));
+        });
+    }
+    else {
+        const noResults = document.createElement('div');
+        noResults.className = 'no-results';
+        noResults.textContent = 'No BM25 results';
+        bm25Column.appendChild(noResults);
+    }
+    const semanticColumn = document.createElement('div');
+    semanticColumn.className = 'results-column';
+    const semanticHeader = document.createElement('h2');
+    semanticHeader.textContent = 'Semantic Search Results';
+    semanticColumn.appendChild(semanticHeader);
+    if (semanticResults && semanticResults.length > 0) {
+        semanticResults.forEach((result, index) => {
+            semanticColumn.appendChild(createResultCard(result, index));
+        });
+    }
+    else {
+        const noResults = document.createElement('div');
+        noResults.className = 'no-results';
+        noResults.textContent = 'No semantic results';
+        semanticColumn.appendChild(noResults);
+    }
+    columnsContainer.appendChild(bm25Column);
+    columnsContainer.appendChild(semanticColumn);
+    resultsContainer.appendChild(columnsContainer);
+}
+function createResultCard(result, index) {
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.style.animationDelay = `${index * 0.05}s`;
+    const header = document.createElement('div');
+    header.className = 'result-header';
+    const titleLink = document.createElement('a');
+    titleLink.className = 'result-title';
+    titleLink.href = result.url;
+    titleLink.target = '_blank';
+    titleLink.textContent = result.title || `Document #${result.id}`;
+    const score = document.createElement('span');
+    score.className = 'result-score';
+    score.textContent = `Score: ${result.score.toFixed(2)}`;
+    header.appendChild(titleLink);
+    header.appendChild(score);
+    const url = document.createElement('div');
+    url.className = 'result-url';
+    url.textContent = result.url;
+    const content = document.createElement('div');
+    content.className = 'result-content';
+    content.textContent = result.content;
+    card.appendChild(header);
+    card.appendChild(url);
+    card.appendChild(content);
+    return card;
 }

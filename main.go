@@ -22,9 +22,13 @@ import (
 	"luen-search-engine/internal/index/disk"
 	"luen-search-engine/internal/indexer"
 	"luen-search-engine/internal/output"
+	"luen-search-engine/internal/pb"
 	"luen-search-engine/internal/search"
 	"luen-search-engine/internal/synonyms"
 	"luen-search-engine/internal/text"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Profiler memory dump
@@ -140,8 +144,20 @@ func main() {
 		defer cleanup[i]()
 	}
 
+	// gRPC Client setup for semantic search
+	var semanticClient *search.SemanticClient
+	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Printf("Failed to create semantic search client: %v. Semantic search will be disabled.", err)
+	} else {
+		defer conn.Close()
+		semanticClient = &search.SemanticClient{
+			Client: pb.NewSemanticEmbeddingServiceClient(conn),
+		}
+	}
+
 	if *serverMode {
-		startServer(postingSource, docLookup, tokenizer, docLengths)
+		startServer(ctx, postingSource, docLookup, tokenizer, docLengths, semanticClient)
 		return
 	}
 
@@ -182,13 +198,14 @@ func main() {
 
 		searchStart := time.Now()
 		var (
-			results []search.Result
-			total   int
+			semanticResults []search.Result
+			bm25Results     []search.Result
+			total           int
 		)
 		if *enableSynonyms && synonymExpander != nil {
-			results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm, docLengths, synonymExpander)
+			semanticResults, bm25Results, total, err = search.Search(ctx, postingSource, tokenizer, semanticClient, searchTerm, docLengths, synonymExpander)
 		} else {
-			results, total, err = search.Search(ctx, postingSource, tokenizer, searchTerm, docLengths)
+			semanticResults, bm25Results, total, err = search.Search(ctx, postingSource, tokenizer, semanticClient, searchTerm, docLengths)
 		}
 		searchTime := time.Since(searchStart)
 		if err != nil {
@@ -196,11 +213,11 @@ func main() {
 			continue
 		}
 
-		output.PrintResults(results, docLookup, total, searchTime, docLengths)
+		output.PrintResults(semanticResults, bm25Results, docLookup, total, searchTime, docLengths)
 	}
 }
 
-func startServer(postingSource *disk.PostingStore, docLookup *data.DocumentStore, tokenizer *text.Tokenizer, docLengths map[search.DocID]search.FieldDocLength) {
+func startServer(ctx context.Context, postingSource *disk.PostingStore, docLookup *data.DocumentStore, tokenizer *text.Tokenizer, docLengths map[search.DocID]search.FieldDocLength, semanticClient *search.SemanticClient) {
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 
 	http.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
@@ -211,7 +228,7 @@ func startServer(postingSource *disk.PostingStore, docLookup *data.DocumentStore
 		}
 
 		start := time.Now()
-		results, total, err := search.Search(r.Context(), postingSource, tokenizer, strings.ToLower(query), docLengths)
+		semanticResults, bm25Results, total, err := search.Search(r.Context(), postingSource, tokenizer, semanticClient, strings.ToLower(query), docLengths)
 		duration := time.Since(start)
 
 		if err != nil {
@@ -220,46 +237,83 @@ func startServer(postingSource *disk.PostingStore, docLookup *data.DocumentStore
 		}
 
 		type Result struct {
-			ID      string `json:"id"`
-			Title   string `json:"title"`
-			URL     string `json:"url"`
-			Content string `json:"content"`
-			Score   int    `json:"score"`
+			ID      string  `json:"id"`
+			Title   string  `json:"title"`
+			URL     string  `json:"url"`
+			Content string  `json:"content"`
+			Score   float64 `json:"score"`
 		}
 
 		type Response struct {
-			Results  []Result `json:"results"`
-			Total    int      `json:"total"`
-			Duration string   `json:"duration"`
+			SemanticResults []Result `json:"semantic_results"`
+			BM25Results     []Result `json:"bm25_results"`
+			Total           int      `json:"total"`
+			Duration        string   `json:"duration"`
 		}
 
-		var jsonResults []Result
-		for _, res := range results {
+		var jsonSemanticResults []Result
+		for _, res := range semanticResults {
 			doc, ok := docLookup.Lookup(res.DocID)
 			if !ok {
 				continue
 			}
-			jsonResults = append(jsonResults, Result{
+			jsonSemanticResults = append(jsonSemanticResults, Result{
 				ID:      fmt.Sprint(res.DocID),
 				Title:   doc.Title,
 				URL:     doc.URL,
 				Content: doc.Text,
-				Score:   res.TotalTermFrequency,
+				Score:   res.Score,
+			})
+		}
+
+		var jsonBM25Results []Result
+		for _, res := range bm25Results {
+			doc, ok := docLookup.Lookup(res.DocID)
+			if !ok {
+				continue
+			}
+			jsonBM25Results = append(jsonBM25Results, Result{
+				ID:      fmt.Sprint(res.DocID),
+				Title:   doc.Title,
+				URL:     doc.URL,
+				Content: doc.Text,
+				Score:   res.Score,
 			})
 		}
 
 		resp := Response{
-			Results:  jsonResults,
-			Total:    total,
-			Duration: duration.String(),
+			SemanticResults: jsonSemanticResults,
+			BM25Results:     jsonBM25Results,
+			Total:           total,
+			Duration:        duration.String(),
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
 	})
 
-	fmt.Println("Server started at http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	server := &http.Server{
+		Addr: ":8080",
+	}
+
+	go func() {
+		fmt.Println("Server started at http://localhost:8080")
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("HTTP server error: %v", err)
+		}
+	}()
+
+	<-ctx.Done()
+	fmt.Println("\nShutting down server...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+
+	fmt.Println("Server stopped gracefully")
 }
 
 func ensureDiskIndex(dir, dataPath string, limit int, tokenizer *text.Tokenizer, batchBytes int64) error {

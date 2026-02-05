@@ -92,7 +92,7 @@ func BenchmarkDiskQueryServing(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, query := range queries {
-			results, _, err := search.Search(context.Background(), store, tokenizer, query, docLengths)
+			_, results, _, err := search.Search(context.Background(), store, tokenizer, nil, query, docLengths)
 			if err != nil {
 				b.Fatalf("search query %q: %v", query, err)
 			}
