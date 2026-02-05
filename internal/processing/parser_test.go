@@ -161,3 +161,177 @@ func slicesEqual(a, b []string) bool {
 	}
 	return true
 }
+
+// TestPruneNotNodePreservesExclusion tests that NOT nodes are not pruned away
+// even when their child terms have low IDF. This is a regression test for a bug
+// where NotNode.Prune() was incorrectly pruning its child, which could cause the
+// NOT node itself to be removed if the child returned nil.
+func TestPruneNotNodePreservesExclusion(t *testing.T) {
+	// Parse a query with a NOT operator: "alpha and not beta"
+	node, err := Parse("alpha and not beta", newTestTokenizer())
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
+
+	// Create a highIDFTokens map that only includes "alpha" (beta has low IDF)
+	highIDFTokens := map[Token]bool{
+		"alpha": true,
+		// "beta" is intentionally omitted to simulate low IDF
+	}
+
+	// Prune the AST
+	prunedNode := node.Prune(highIDFTokens)
+
+	// The pruned node should still be an AndNode
+	andNode, ok := prunedNode.(*AndNode)
+	if !ok {
+		t.Fatalf("expected AndNode after pruning, got %T", prunedNode)
+	}
+
+	// The AndNode should have 2 children: alpha term and NOT beta
+	if len(andNode.Children) != 2 {
+		t.Fatalf("expected 2 children after pruning, got %d", len(andNode.Children))
+	}
+
+	// First child should be the alpha term
+	checkTerm(t, andNode.Children[0], "alpha")
+
+	// Second child should be the NOT node (not pruned away)
+	notNode, ok := andNode.Children[1].(*NotNode)
+	if !ok {
+		t.Fatalf("expected NotNode as second child after pruning, got %T", andNode.Children[1])
+	}
+
+	// The NOT node should still have its child (beta term), even though beta has low IDF
+	if notNode.Child == nil {
+		t.Fatal("NOT node child was pruned away - this is the regression!")
+	}
+
+	checkTerm(t, notNode.Child, "beta")
+}
+
+// TestPruneTermNodeWithLowIDF tests that term nodes with low IDF are pruned
+func TestPruneTermNodeWithLowIDF(t *testing.T) {
+	// Parse a simple term
+	node, err := Parse("beta", newTestTokenizer())
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
+
+	// Create a highIDFTokens map that does not include "beta"
+	// (alpha is included to make the map non-empty, though not relevant to this test)
+	highIDFTokens := map[Token]bool{
+		"alpha": true,
+	}
+
+	// Prune the AST
+	prunedNode := node.Prune(highIDFTokens)
+
+	// The low-IDF term should be pruned to nil
+	if prunedNode != nil {
+		t.Fatalf("expected nil after pruning low-IDF term, got %T", prunedNode)
+	}
+}
+
+// TestPruneAndNodeRemovesLowIDFTerms tests that AND nodes remove low-IDF children
+func TestPruneAndNodeRemovesLowIDFTerms(t *testing.T) {
+	// Parse: "alpha and beta and gamma"
+	node, err := Parse("alpha and beta and gamma", newTestTokenizer())
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
+
+	// Only alpha and gamma have high IDF
+	highIDFTokens := map[Token]bool{
+		"alpha": true,
+		"gamma": true,
+	}
+
+	// Prune the AST
+	prunedNode := node.Prune(highIDFTokens)
+
+	// Should still be an AndNode
+	andNode, ok := prunedNode.(*AndNode)
+	if !ok {
+		t.Fatalf("expected AndNode after pruning, got %T", prunedNode)
+	}
+
+	// Should have 2 children (beta was pruned)
+	if len(andNode.Children) != 2 {
+		t.Fatalf("expected 2 children after pruning beta, got %d", len(andNode.Children))
+	}
+
+	checkTerm(t, andNode.Children[0], "alpha")
+	checkTerm(t, andNode.Children[1], "gamma")
+}
+
+// TestPruneOrNodeRemovesLowIDFTerms tests that OR nodes remove low-IDF children
+func TestPruneOrNodeRemovesLowIDFTerms(t *testing.T) {
+	// Parse: "alpha or beta or gamma"
+	node, err := Parse("alpha or beta or gamma", newTestTokenizer())
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
+
+	// Only alpha has high IDF
+	highIDFTokens := map[Token]bool{
+		"alpha": true,
+	}
+
+	// Prune the AST
+	prunedNode := node.Prune(highIDFTokens)
+
+	// After pruning, only alpha remains, so the OrNode should collapse to a single TermNode
+	term, ok := prunedNode.(*TermNode)
+	if !ok {
+		t.Fatalf("expected TermNode after pruning OR node to single term, got %T", prunedNode)
+	}
+
+	if term.Token != "alpha" {
+		t.Fatalf("expected token alpha, got %q", term.Token)
+	}
+}
+
+// TestPruneComplexQueryWithNot tests a complex query with NOT to ensure exclusions are preserved
+func TestPruneComplexQueryWithNot(t *testing.T) {
+	// Parse: "(alpha or beta) and not gamma"
+	node, err := Parse("(alpha or beta) and not gamma", newTestTokenizer())
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
+
+	// Only alpha has high IDF (beta and gamma are treated as low IDF by omission)
+	highIDFTokens := map[Token]bool{
+		"alpha": true,
+	}
+
+	// Prune the AST
+	prunedNode := node.Prune(highIDFTokens)
+
+	// Should be an AndNode
+	andNode, ok := prunedNode.(*AndNode)
+	if !ok {
+		t.Fatalf("expected AndNode after pruning, got %T", prunedNode)
+	}
+
+	// Should have 2 children: the alpha term (OR collapsed) and the NOT node
+	if len(andNode.Children) != 2 {
+		t.Fatalf("expected 2 children, got %d", len(andNode.Children))
+	}
+
+	// First child should be alpha (the OR node collapsed to a single term)
+	checkTerm(t, andNode.Children[0], "alpha")
+
+	// Second child should be the NOT node (preserved even though gamma has low IDF)
+	notNode, ok := andNode.Children[1].(*NotNode)
+	if !ok {
+		t.Fatalf("expected NotNode as second child, got %T", andNode.Children[1])
+	}
+
+	// The NOT node should still have its child
+	if notNode.Child == nil {
+		t.Fatal("NOT node child was incorrectly pruned")
+	}
+
+	checkTerm(t, notNode.Child, "gamma")
+}
