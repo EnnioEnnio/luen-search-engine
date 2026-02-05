@@ -22,7 +22,7 @@ echo "GPU: $CUDA_VISIBLE_DEVICES"
 
 # Step 1: Set up container with dependencies (first run only, cached afterward)
 echo "Setting up container with dependencies..."
-srun --container-image="nvcr.io#nvidia/pytorch:24.11-py3" \
+srun --container-image="nvcr.io#nvidia/pytorch:25.01-py3" \
      --container-name=luen-embed-$USER \
      --container-writable \
      --container-mounts=$REPO_PATH:/workspace \
