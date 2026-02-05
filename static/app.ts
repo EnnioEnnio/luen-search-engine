@@ -49,9 +49,6 @@ async function performSearch(query: string): Promise<void> {
             throw new Error('Network response was not ok');
         }
         const data: SearchResponse = await response.json();
-        console.log('API Response:', data);
-        console.log('Semantic results:', data.semantic_results?.length || 0);
-        console.log('BM25 results:', data.bm25_results?.length || 0);
         renderResults(data.semantic_results, data.bm25_results, data.total, data.duration);
     } catch (error) {
         console.error('Error fetching search results:', error);
