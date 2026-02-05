@@ -29,7 +29,7 @@ srun --container-image="nvcr.io#nvidia/pytorch:25.01-py3" \
      --container-name=$CONTAINER_NAME \
      --container-writable \
      --container-mounts=$REPO_PATH:/workspace \
-     bash -c "pip list | grep -q 'transformers.*5\.' || pip install --no-cache-dir transformers tqdm einops"
+     bash -c "pip list 2>/dev/null | grep -q 'transformers.*5\.' || pip install --no-cache-dir transformers tqdm einops 2>&1 | grep -v 'DEPRECATION\|Loading egg'"
 
 # Step 2: Run embedding generation
 echo "Running embedding generation..."
