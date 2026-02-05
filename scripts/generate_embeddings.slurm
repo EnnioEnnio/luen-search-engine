@@ -9,9 +9,11 @@
 #SBATCH --mem=64G
 #SBATCH --job-name=luen-embeddings
 #SBATCH --output=slurm-embeddings-%j.out
+#SBATCH --exclude=gx21,gp[01-04]
 
 # This script generates embeddings for the MS MARCO dataset using GPU
 # IMPORTANT: Update REPO_PATH to match your cluster home directory path
+# NOTE: Excludes V100 GPUs (CUDA 7.0) as PyTorch 25.01 requires CUDA capability >= 7.5
 
 REPO_PATH=/sc/home/<YOUR_USERNAME>/luen-search-engine
 
@@ -19,6 +21,7 @@ echo "Starting embedding generation job"
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURMD_NODENAME"
 echo "GPU: $CUDA_VISIBLE_DEVICES"
+nvidia-smi --query-gpu=name,compute_cap --format=csv,noheader
 
 # Step 1: Set up container with dependencies (reuses container across jobs)
 echo "Setting up container with dependencies..."
