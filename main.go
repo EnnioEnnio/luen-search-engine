@@ -167,8 +167,13 @@ func main() {
 		rawAPIKey := os.Getenv("OPENAI_API_KEY")
 		apiKey := strings.TrimSpace(rawAPIKey)
 		if apiKey != "" {
-			aiClient = ai.NewOpenAIClient(apiKey)
-			log.Println("OpenAI client initialized")
+			// Validate API key format
+			if !strings.HasPrefix(apiKey, "sk-") || len(apiKey) < 20 {
+				log.Printf("WARNING: OPENAI_API_KEY appears to be malformed (should start with 'sk-' and be at least 20 characters), AI answers will be disabled")
+			} else {
+				aiClient = ai.NewOpenAIClient(apiKey)
+				log.Println("OpenAI client initialized")
+			}
 		} else {
 			log.Println("OPENAI_API_KEY not set, AI answers will be disabled")
 		}
