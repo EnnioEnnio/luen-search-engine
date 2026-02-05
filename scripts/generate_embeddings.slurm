@@ -5,11 +5,10 @@
 #SBATCH --partition=gpu-batch
 #SBATCH -C ARCH:X86
 #SBATCH --time=6:00:00
-#SBATCH --gpus=1
+#SBATCH --gpus=a100:1
 #SBATCH --mem=64G
 #SBATCH --job-name=luen-embeddings
 #SBATCH --output=slurm-embeddings-%j.out
-#SBATCH --exclude=gx21,gp[01-04]
 
 # This script generates embeddings for the MS MARCO dataset using GPU
 # IMPORTANT: Update REPO_PATH to match your cluster home directory path
