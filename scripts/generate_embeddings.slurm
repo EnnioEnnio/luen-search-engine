@@ -6,7 +6,7 @@
 #SBATCH -C ARCH:X86
 #SBATCH --time=6:00:00
 #SBATCH --gpus=1
-#SBATCH --mem=32G
+#SBATCH --mem=64G
 #SBATCH --job-name=luen-embeddings
 #SBATCH --output=slurm-embeddings-%j.out
 
