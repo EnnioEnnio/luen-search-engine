@@ -57,5 +57,7 @@ embedding/__pycache__/
 *.pyc
 embedding/.venv/
 # embedding/output/ # We're currently including this for workflow reasons. Once the embedding becomes too large we're excluding again
+embedding/output/*.npy
+!embedding/output/*.example.npy
 embedding/.ruff_cache
 .env
